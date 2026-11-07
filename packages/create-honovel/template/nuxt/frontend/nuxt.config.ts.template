@@ -1,0 +1,22 @@
+import tailwindcss from '@tailwindcss/vite'
+
+const backendDevUrl = process.env.HONOVEL_BACKEND_DEV_URL || 'http://127.0.0.1:8788'
+
+export default defineNuxtConfig({
+  compatibilityDate: '2026-10-02',
+  app: {
+    head: { link: [{ rel: 'icon', type: 'image/png', href: '/honovel-icon.png' }] },
+  },
+  devtools: { enabled: true },
+  css: ['~/assets/css/main.css'],
+  vite: {
+    plugins: [tailwindcss()],
+    server: {
+      proxy: {
+        '/api': backendDevUrl,
+        '/swagger': backendDevUrl,
+        '/openapi.json': backendDevUrl,
+      },
+    },
+  },
+})

@@ -1,0 +1,65 @@
+import {
+  Cache,
+  createDecorator,
+  TooManyRequestsException,
+} from '@honovel/core'
+
+/**
+ * Default API rate limit: 200 requests per minute per client IP.
+ *
+ * This can be adapted to user-, account-, token-, or route-based limits if needed.
+ */
+export const IpRateLimit = createDecorator(
+  [Cache],
+  async (context, cache, attempts: number) => {
+    const forwardedFor = context.req.header('X-Forwarded-For')
+    const ip = context.req.header('CF-Connecting-IP')
+      ?? forwardedFor?.split(',')[0]?.trim()
+      ?? 'unknown'
+
+    const currentAttempts = await cache.increment(
+      'rate-limit',
+      `api:${ip}`,
+      1,
+      60_000,
+    )
+
+    if (currentAttempts > attempts) {
+      throw new TooManyRequestsException()
+    }
+  },
+  { cache: false },
+)
+
+/**
+ * Additional custom decorator examples. Uncomment and adapt these to your application.
+ * They can be used on controller parameters, methods, or controllers.
+ */
+
+/*
+import { JwtPayload } from '@honovel/core'
+import { UserService } from './services/UserService'
+
+export const Header = createDecorator((context, name: string) =>
+  context.req.header(name)
+)
+
+// You can inject any service or even other decorators to your custom decorators.
+// UserService is request-scoped by default. Replace findById() with the
+// application-specific lookup used by your user model.
+export const CurrentUser = createDecorator(
+  [UserService, JwtPayload], // Inject any service or even other decorators here
+  async (_context, users, jwt) => users.findById(Number(jwt.sub)),
+)
+
+// Example usage:
+//
+// @ApiRateLimit()
+// @Get('/')
+// show(
+//   @Header('x-request-id') requestId: string | undefined,
+//   @CurrentUser() user: User,
+// ) {
+//   return { requestId, user }
+// }
+*/

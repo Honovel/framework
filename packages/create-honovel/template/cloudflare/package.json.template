@@ -1,0 +1,48 @@
+{
+  "name": "__PROJECT_NAME__",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  },
+  "scripts": {
+    "honovel": "honovel",
+    "compile": "honovel cloudflare:compile",
+    "compile:wrangler": "honovel cloudflare:build",
+    "typecheck:backend": "npm run cf-typegen && honovel typecheck",
+    "typecheck": "npm run typecheck:backend",
+    "db:generate": "honovel db:generate --db=main",
+    "db:migrate": "wrangler d1 migrations apply __WORKER_NAME__-main --local",
+    "db:migrate:remote": "wrangler d1 migrations apply __WORKER_NAME__-main --remote",
+    "build": "npm run cf-typegen && honovel cloudflare:deploy --dry-run --outdir dist/worker",
+    "dev:backend": "honovel cloudflare:dev-backend",
+    "dev:backend:debug": "honovel cloudflare:dev-backend --debug",
+    "dev": "honovel cloudflare:dev-backend",
+    "dev:debug": "honovel cloudflare:dev-backend --debug",
+    "predeploy": "honovel cloudflare:predeploy",
+    "deploy": "npm run cf-typegen && honovel cloudflare:deploy --minify",
+    "cf-typegen": "honovel cloudflare:typegen"
+  },
+  "dependencies": {
+    "@honovel/core": "__HONOVEL_VERSION__",
+    "@honovel/cloudflare": "__HONOVEL_VERSION__",
+    "hono": "^4.13.8",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^6.0.3",
+    "wrangler": "4.142.0"
+  }
+}

@@ -1,0 +1,39 @@
+<script setup lang="ts">
+useSeoMeta({
+  title: 'The stack · __PROJECT_NAME__',
+  description: 'Nuxt and Honovel, connected by design.',
+})
+</script>
+
+<template>
+  <main id="main" class="page-width flex-1 pb-16 pt-10 lg:pb-24 lg:pt-16">
+    <section class="enter">
+      <p class="eyebrow mb-7">The stack / Connected by design</p>
+      <h1 class="max-w-4xl text-[clamp(3rem,6.5vw,5.5rem)] font-medium leading-[1.05] tracking-[-0.06em]">Two sides.<br />One <span class="text-accent">application.</span></h1>
+      <p class="mt-7 max-w-xl text-lg leading-8 text-muted">Nuxt handles the web experience. Honovel handles the API. TypeScript connects the pieces, and Tailwind makes them your own.</p>
+    </section>
+    <section class="enter enter-late my-12 overflow-hidden rounded-2xl bg-ink p-6 text-paper sm:p-10 lg:my-16" aria-label="Request flow">
+      <p class="mb-8 font-mono text-xs uppercase tracking-widest text-[#bfc0b5]">One origin, from browser to backend</p>
+      <div class="grid items-center gap-5 md:grid-cols-[1fr_auto_1fr_auto_1fr]">
+        <div><span class="font-mono text-xs text-[#bfc0b5]">01</span><h2 class="mt-2 text-2xl font-medium">Nuxt</h2><p class="mt-2 text-sm text-[#bfc0b5]">Pages, SEO, rendering</p></div>
+        <span class="text-3xl text-[#ed9b7b]" aria-hidden="true">→</span>
+        <div><span class="font-mono text-xs text-[#bfc0b5]">02</span><h2 class="mt-2 text-2xl font-medium">fetch('/api/…')</h2><p class="mt-2 text-sm text-[#bfc0b5]">Same-origin requests</p></div>
+        <span class="text-3xl text-[#ed9b7b]" aria-hidden="true">→</span>
+        <div><span class="font-mono text-xs text-[#bfc0b5]">03</span><h2 class="mt-2 text-2xl font-medium">Honovel + Hono</h2><p class="mt-2 text-sm text-[#bfc0b5]">Controllers, services, data</p></div>
+      </div>
+    </section>
+    <section class="grid gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-20">
+      <div><p class="eyebrow mb-4">A place for everything</p><h2 class="text-3xl font-medium tracking-tight">Simple foundations.<br />Room to grow.</h2></div>
+      <dl>
+        <div class="grid gap-2 border-t border-line py-6 sm:grid-cols-[140px_1fr] sm:gap-6"><dt class="font-semibold">Frontend</dt><dd class="text-sm leading-7 text-muted">Pages live in <code class="text-ink">frontend/app/pages</code>. Nuxt provides routing, SEO metadata, SSR and prerendering capabilities.</dd></div>
+        <div class="grid gap-2 border-t border-line py-6 sm:grid-cols-[140px_1fr] sm:gap-6"><dt class="font-semibold">API</dt><dd class="text-sm leading-7 text-muted">Backend features live in <code class="text-ink">src/features</code>. Requests under <code class="text-ink">/api</code> reach your Honovel controllers.</dd></div>
+        <div class="grid gap-2 border-t border-line py-6 sm:grid-cols-[140px_1fr] sm:gap-6"><dt class="font-semibold">Development</dt><dd class="text-sm leading-7 text-muted"><code class="text-ink">npm run dev</code> starts Nuxt and the backend together. Nuxt proxies API and docs requests while you work.</dd></div>
+        <div class="grid gap-2 border-y border-line py-6 sm:grid-cols-[140px_1fr] sm:gap-6"><dt class="font-semibold">Production</dt><dd class="text-sm leading-7 text-muted"><code class="text-ink">npm run build</code> prerenders the frontend and builds the backend. Your chosen runtime serves both from one origin.</dd></div>
+      </dl>
+    </section>
+    <div class="mt-12 flex flex-wrap items-center justify-between gap-6 border-t border-line pt-8">
+      <p class="text-xl font-medium tracking-tight">The rest is your story.</p>
+      <NuxtLink to="/" class="action">Back to your canvas <span aria-hidden="true">↗</span></NuxtLink>
+    </div>
+  </main>
+</template>

@@ -1,0 +1,47 @@
+{
+  "name": "honovel",
+  "private": true,
+  "type": "module",
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  },
+  "scripts": {
+    "package:build": "npm --prefix core run build && npm --prefix packages/cloudflare run build && npm --prefix packages/node run build",
+    "package:pack": "node scripts/pack-packages.mjs",
+    "create:local": "node scripts/create-local.mjs",
+    "test:packages": "node test/honovel-packages-check.mjs",
+    "release:check": "npm --prefix core run build && npm test && npm run test:packages",
+    "smoke": "npm run package:build && npm run test:packages",
+    "release:private": "node scripts/release-private.mjs",
+    "docs:install": "npm --prefix docs install",
+    "docs:dev": "npm --prefix docs run dev",
+    "docs:build": "npm --prefix docs run build",
+    "docs:preview": "npm --prefix docs run preview",
+    "docs:preview:cloudflare": "npm run docs:build && wrangler dev --config docs/wrangler.jsonc --port 4174",
+    "docs:deploy": "npm run docs:build && wrangler deploy --config docs/wrangler.jsonc",
+    "dev": "node test/run.mjs dev",
+    "honovel": "node core/cli/honovel.mjs",
+    "compile": "node test/run.mjs compile",
+    "build": "node test/run.mjs build",
+    "typecheck": "node test/run.mjs typecheck",
+    "test": "node test/run.mjs",
+    "deploy": "node test/run.mjs deploy",
+    "cf-typegen": "node test/run.mjs cf-typegen"
+  },
+  "dependencies": {
+    "@honovel/core": "file:./core",
+    "drizzle-orm": "^0.45.3",
+    "hono": "^4.13.8",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.1",
+    "honovel-typescript-plugin": "file:core/tools/honovel-typescript-plugin",
+    "sql.js": "^1.14.2",
+    "typescript": "6.0.3",
+    "wrangler": "^4.110.0"
+  }
+}

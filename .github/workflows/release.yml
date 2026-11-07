@@ -1,0 +1,38 @@
+name: Release private Honovel packages
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      # npm 10 / arborist 8 crashes while resolving Nuxt's optional peer
+      # graph ("Cannot read properties of null (reading 'edgesOut')").
+      # npm 11.6+ contains the arborist fix.
+      - name: Use npm 11.6+
+        run: npm install --global npm@11.6.0
+      - run: npm ci
+      - run: npm run package:build
+      - name: Run release checks
+        run: npm run release:check
+        env:
+          HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}
+      - name: Verify and publish to the private organization registry
+        run: npm run release:private
+        env:
+          GITEA_TOKEN: ${{ secrets.HONOVEL_PACKAGES_TOKEN }}
+          HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}

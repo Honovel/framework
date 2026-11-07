@@ -1,0 +1,27 @@
+{
+  "name": "@honovel/node",
+  "version": "0.1.9",
+  "description": "Node.js runtime adapters for Honovel",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./index.ts", "import": "./dist/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "index.ts", "cache", "queue", "cron", "scripts/build-package.mjs", "README.md"],
+  "scripts": { "build": "npm run typecheck && node scripts/build-package.mjs", "typecheck": "tsc -p tsconfig.json", "prepack": "npm run build" },
+  "peerDependencies": {
+    "@honovel/core": "^0.1.9"
+  },
+  "dependencies": {
+    "croner": "^10.0.1"
+  },
+  "devDependencies": {
+    "@honovel/core": "file:../../core",
+    "esbuild": "^0.28.1"
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "packages/node" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com/", "access": "restricted" }
+}

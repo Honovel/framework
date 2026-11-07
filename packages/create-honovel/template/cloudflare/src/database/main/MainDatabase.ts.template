@@ -1,0 +1,10 @@
+import type { Context } from 'hono'
+import { drizzle } from 'drizzle-orm/d1'
+import { defineDatabase } from '@honovel/core'
+import type { AppEnv } from '../../env'
+import * as schema from './schema'
+
+/** The default D1 database. Replace the placeholder ID in wrangler.jsonc before deploy. */
+export class MainDatabase extends defineDatabase(
+  (context: Context<AppEnv>) => drizzle(context.env.DB, { schema }),
+) {}

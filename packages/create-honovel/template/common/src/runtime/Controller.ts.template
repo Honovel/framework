@@ -1,0 +1,4 @@
+import { BaseController, BaseUrl } from '@honovel/core'
+
+@BaseUrl('/api')
+export abstract class Controller extends BaseController {}

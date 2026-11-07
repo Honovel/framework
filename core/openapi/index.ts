@@ -1,0 +1,1 @@
+export { registerOpenApiRoutes } from './runtime'

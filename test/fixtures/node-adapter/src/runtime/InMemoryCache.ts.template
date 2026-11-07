@@ -1,0 +1,5 @@
+import { Cache, Scope } from '@honovel/core'
+import { InMemoryCache } from '@honovel/node'
+
+@Scope({ provides: Cache })
+export class AppCache extends InMemoryCache {}

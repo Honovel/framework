@@ -1,0 +1,16 @@
+node_modules/
+.honovel/
+.honovel.wrangler.jsonc
+dist/
+.nuxt/
+.output/
+.wrangler/
+.dev.vars
+.dev.vars.*
+worker-configuration.d.ts
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+*.log

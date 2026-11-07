@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "outDir": ".honovel", "declaration": false },
+  "include": ["index.ts", "src/**/*.ts", "worker-configuration.d.ts"]
+}

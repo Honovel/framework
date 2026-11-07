@@ -1,0 +1,10 @@
+import { BaseUrl, Get } from '@honovel/core'
+import { Controller } from '#src/runtime/Controller'
+
+@BaseUrl('/health')
+export class HealthController extends Controller {
+  @Get('/')
+  show() {
+    return { status: 'ok' }
+  }
+}

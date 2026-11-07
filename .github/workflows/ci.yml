@@ -1,0 +1,54 @@
+name: Framework checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  framework:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Use the supported npm resolver
+        run: npm install --global npm@11.6.0
+      - run: npm ci
+      - run: npm run package:build
+      - run: npm test
+      - run: npm run test:packages
+        env:
+          # GITHUB_REF_NAME is a branch on CI; package fixtures need a semver.
+          HONOVEL_RELEASE_TAG: 0.0.0-ci
+
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci --prefix docs
+      - name: Check GitHub Pages build
+        run: npm run docs:build
+        env:
+          HONOVEL_DOCS_TARGET: github-pages
+          HONOVEL_DOCS_BASE: /framework/

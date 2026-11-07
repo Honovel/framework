@@ -1,0 +1,56 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "main": ".honovel/index.js",
+  "compatibility_date": "2026-09-21",
+  "compatibility_flags": [
+    "no_nodejs_compat",
+    "no_nodejs_compat_v2"
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "HONOVEL_CACHE",
+        "class_name": "HonovelCacheDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "HonovelCacheDurableObject"
+      ]
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "HONOVEL_QUEUE",
+        "queue": "__WORKER_NAME__"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "__WORKER_NAME__"
+      }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "__WORKER_NAME__-main",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "src/database/main/migrations"
+    }
+  ],
+  "build": {
+    "command": "honovel cloudflare:build",
+    "watch_dir": [
+      "src",
+      "index.ts",
+      "tsconfig.json",
+      "tsconfig.build.json"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@honovel/core",
+  "version": "0.1.9",
+  "description": "Compile feature-oriented TypeScript applications to Hono routes",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./index.ts", "import": "./dist/index.js" },
+    "./internal/*": { "types": "./*.ts", "import": "./dist/*.js" },
+    "./typescript-plugin": "./tools/honovel-typescript-plugin/index.cjs",
+    "./package.json": "./package.json"
+  },
+  "bin": { "honovel": "./cli/honovel.mjs", "honovel-build": "./compiler/honovel-build.mjs" },
+  "files": ["dist", "index.ts", "app.ts", "cache", "database", "di", "dispatch", "http", "lock", "logging", "openapi", "queue", "schedule", "compiler", "cli", "scripts/honovel-build.mjs", "scripts/build-package.mjs", "tools/honovel-typescript-plugin", "typescript-plugin", "README.md"],
+  "scripts": { "build": "node scripts/build-package.mjs", "prepack": "npm run build" },
+  "peerDependencies": { "hono": "^4.13.8", "drizzle-orm": "^0.45.3", "zod": "^4.6.5" },
+  "dependencies": { "typescript": "^6.0.3" },
+  "devDependencies": { "esbuild": "^0.28.1" },
+  "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "core" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com/", "access": "restricted" }
+}

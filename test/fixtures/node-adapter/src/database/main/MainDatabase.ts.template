@@ -1,0 +1,10 @@
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { defineDatabase } from '@honovel/core'
+import * as schema from './schema/index.js'
+
+const sqlite = new Database(process.env.DATABASE_URL ?? 'local.db')
+const client = drizzle(sqlite, { schema })
+
+/** The default application database. Reuse this provider in feature repositories. */
+export class MainDatabase extends defineDatabase(() => client) {}

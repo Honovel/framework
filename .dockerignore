@@ -1,0 +1,12 @@
+node_modules
+.git
+.chatgpt
+.honovel
+dist
+.wrangler
+.env
+.env.production
+.dev.vars
+.idea
+.vscode
+*.log

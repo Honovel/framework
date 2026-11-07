@@ -1,0 +1,16 @@
+{
+  "name": "honovel-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:agents": "node scripts/generate-agent-docs.mjs",
+    "predev": "npm run generate:agents",
+    "dev": "vitepress dev .",
+    "prebuild": "npm run generate:agents",
+    "build": "vitepress build .",
+    "preview": "vitepress preview ."
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

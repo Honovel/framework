@@ -1,0 +1,11 @@
+import { Context } from 'hono'
+import { Queue, Scope } from '@honovel/core'
+import { BaseCloudflareQueue } from '@honovel/cloudflare'
+import type { AppEnv } from '../env'
+
+@Scope({ provides: Queue })
+export class CloudflareQueue extends BaseCloudflareQueue {
+  constructor(context: Context<AppEnv>) {
+    super(context.env.HONOVEL_QUEUE)
+  }
+}

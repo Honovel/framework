@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "honovel",
+  "main": ".honovel/index.js",
+  "compatibility_date": "2026-09-22",
+  "build": {
+    "command": "npm run compile",
+    "watch_dir": [
+      "src",
+      "index.ts",
+      "core"
+    ]
+  }
+}

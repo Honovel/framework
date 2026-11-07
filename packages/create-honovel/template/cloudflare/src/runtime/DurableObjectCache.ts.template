@@ -1,0 +1,11 @@
+import { Context } from 'hono'
+import { Cache, Scope } from '@honovel/core'
+import { BaseDurableObjectCache } from '@honovel/cloudflare'
+import type { AppEnv } from '../env'
+
+@Scope({ provides: Cache })
+export class DurableObjectCache extends BaseDurableObjectCache {
+  constructor(context: Context<AppEnv>) {
+    super(context.env.HONOVEL_CACHE)
+  }
+}

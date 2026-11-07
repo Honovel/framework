@@ -1,0 +1,26 @@
+{
+  "name": "@honovel/cloudflare",
+  "version": "0.1.9",
+  "description": "Cloudflare runtime adapters for Honovel",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "sideEffects": false,
+  "exports": {
+    ".": { "types": "./index.ts", "import": "./dist/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "index.ts", "cache", "http", "queue", "scripts/build-package.mjs", "README.md"],
+  "scripts": { "build": "npm run typecheck && node scripts/build-package.mjs", "typecheck": "tsc -p tsconfig.json", "prepack": "npm run build" },
+  "peerDependencies": {
+    "@honovel/core": "^0.1.9",
+    "hono": "^4.13.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "@honovel/core": "file:../../core",
+    "esbuild": "^0.28.1"
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "packages/cloudflare" },
+  "publishConfig": { "registry": "https://npm.pkg.github.com/", "access": "restricted" }
+}

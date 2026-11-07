@@ -1,0 +1,38 @@
+@import '@fontsource-variable/manrope';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Manrope Variable', sans-serif;
+  --color-paper: #f5f3ed;
+  --color-ink: #242520;
+  --color-muted: #686a60;
+  --color-line: #dedfd5;
+  --color-accent: #bd3b23;
+}
+
+@layer base {
+  body { @apply m-0 min-w-80 bg-paper font-sans text-ink antialiased; }
+  ::selection { background: #f7c4aa; color: #242520; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), a { cursor: pointer; }
+  :focus-visible { outline: 2px solid #bd3b23; outline-offset: 5px; }
+}
+
+@layer components {
+  .nav-link { @apply rounded-full px-5 py-2 transition-colors; }
+  .nav-link:hover { @apply bg-white; }
+  .nav-link.router-link-exact-active { @apply bg-ink text-paper; }
+  .page-width { @apply mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-16; }
+  .eyebrow { @apply font-mono text-xs uppercase tracking-[0.16em] text-muted; }
+  .action { @apply inline-flex min-h-12 items-center justify-center gap-5 rounded-full bg-ink px-6 text-sm font-semibold text-paper transition-colors hover:bg-accent disabled:cursor-wait disabled:opacity-60; }
+  .text-link { @apply inline-flex min-h-11 items-center gap-3 text-sm font-semibold transition-colors hover:text-accent; }
+}
+
+.enter { animation: enter 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.enter-late { animation-delay: 110ms; }
+.hero-mark { animation: mark-enter 950ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes enter { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes mark-enter { from { opacity: 0; transform: rotate(-8deg) scale(0.95); } to { opacity: 1; transform: rotate(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

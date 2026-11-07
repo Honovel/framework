@@ -1,0 +1,8 @@
+{
+  "name": "honovel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "node core/compiler/honovel-build.mjs"
+  }
+}
