@@ -4,7 +4,18 @@ Honovel creates Cloudflare Workers applications with either a Nuxt 4 frontend or
 
 ## Requirements
 
-Use Node.js 22 or newer and npm 11.6 or newer for local tooling. The backend runs on Cloudflare Workers in both modes. The framework source is hosted at [Honovel/framework on GitHub](https://github.com/Honovel/framework); the public quickstart uses the published npm initializer.
+Use Node.js 22 or newer and npm 11.6 or newer for local tooling. The backend runs on Cloudflare Workers in both modes. The framework source is hosted at [Honovel/framework on GitHub](https://github.com/Honovel/framework); the quickstart uses the initializer published to GitHub Packages.
+
+## GitHub Packages authentication
+
+Configure the Honovel scope and sign in once before creating a project:
+
+```bash
+npm config set --location=user @honovel:registry https://npm.pkg.github.com/
+npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
+```
+
+Use your GitHub username and a personal access token (classic) with `read:packages` as the password. GitHub Packages requires authentication even for public npm packages. Keep the token in user npm configuration or CI secrets; generated projects contain only the scope mapping. Other dependencies still come from the public npm registry.
 
 ## Create a project
 

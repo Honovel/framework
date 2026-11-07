@@ -1,53 +1,50 @@
-# Maintainer reference: private package publishing
+# Maintainer reference: GitHub Packages
 
-This internal page describes the existing private Gitea release scripts and their credentials. It is excluded from the public documentation site and agent documentation. For the public installation commands used by framework consumers, see [Getting Started](/getting-started).
-
-The repository contains four independently publishable npm projects:
+This page describes releases of the four Honovel npm packages to GitHub Packages. It is excluded from the public documentation site and agent documentation; consumer setup is covered in [Getting Started](/getting-started#github-packages-authentication).
 
 | Directory | Package | Purpose |
 | --- | --- | --- |
 | `core/` | `@honovel/core` | Runtime, compiler, generators, editor plugin |
-| `packages/cloudflare/` | `@honovel/cloudflare` | Durable Object cache, Cloudflare queue and client IP adapters |
-| `packages/node/` | `@honovel/node` | In-memory cache/queue and Croner runtime |
-| `packages/create-honovel/` | `@honovel/create-honovel` | New-project CLI and template |
+| `packages/cloudflare/` | `@honovel/cloudflare` | Cloudflare runtime adapters |
+| `packages/node/` | `@honovel/node` | Adapters for existing Node applications |
+| `packages/create-honovel/` | `@honovel/create-honovel` | Project initializer and templates |
 
-The root project is a private framework development workspace. Framework checks live in `test/`, and the Todo application lives in `test/fixtures/application/` as a test fixture. It is not published or copied into generated projects. No duplicate Core source tree is needed. Gitea packages belong to the **Honovel organization**; the source repository and npm package names are configured separately.
+All packages target `https://npm.pkg.github.com/` and use `git+https://github.com/Honovel/framework.git` as their repository, with the corresponding monorepo directory. This associates the packages with the workflow repository. The root workspace stays private and is not published.
 
-Registry: `https://npm.pkg.github.com/`.
+## Authentication and permissions
 
-## Private release access and authentication
+The GitHub release workflow uses the built-in `GITHUB_TOKEN`, passed as `NODE_AUTH_TOKEN`, with `contents: read` and `packages: write`. No additional publishing secret is required for packages associated with the workflow repository. If a package already exists under different permissions, grant the `Honovel/framework` repository Actions access to that package.
 
-**The Honovel organization must be private.** Gitea derives package access from the owner; `publishConfig.access: restricted` alone is not sufficient to establish Gitea privacy. A private source repository or a site-wide sign-in requirement is also insufficient. The release script checks the organization's authenticated API visibility and refuses an upload unless it is `private`.
-
-For installation, configure the scope and a token environment-variable reference in your user npm configuration:
+For local installation or manual publishing, configure the scope and authenticate:
 
 ```sh
 npm config set --location=user @honovel:registry https://npm.pkg.github.com/
-npm config set --location=user -- '//npm.pkg.github.com/:_authToken' '${GITEA_TOKEN}'
+npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
 ```
 
-Supply `GITEA_TOKEN` in your shell through your secret manager before npm commands; the single-quoted command above stores the variable reference, not the token. An installation token needs package read permission; publishing requires package write permission. The release script additionally requires organization read permission to verify privacy. Authentication belongs in your user-level npm config or CI secrets, never in tracked files. The repository and generated project `.npmrc` files contain only a scope mapping.
+Use a personal access token (classic): `read:packages` for installation or `write:packages` for publishing. GitHub Packages requires authentication for installing public packages as well. Keep tokens in user npm configuration or CI secrets; repository and generated project `.npmrc` files contain only the scope mapping.
 
-## Local checks and release
+GitHub initially publishes packages with private visibility. Set the desired package visibility in GitHub package settings; `publishConfig.access` does not replace those settings.
+
+## Checks and release
 
 ```sh
 npm ci
-npm test
-npm run test:packages
+npm run release:check
 npm run package:pack
 ```
 
-Tarballs and an inventory are written to ignored `dist/packages/`. The integration test packs all four packages and installs the relevant runtime packages into fresh Cloudflare Nuxt and API-only projects, plus an internal Node adapter fixture, generates a feature, checks compiler diagnostics and database DI, and executes development/production Hono requests. The Cloudflare variant generates binding types, runs a Wrangler deployment dry run, and executes the bundle locally in Miniflare/workerd. It also checks that the browser runtime bundle cannot reach compiler tooling. It needs npm access for public dependencies but no Gitea or Cloudflare authentication, and performs no deployment.
+Tarballs and their manifest are written to ignored `dist/packages/`. Package integration tests install both Cloudflare project modes and an internal Node adapter fixture. Release tests simulate registry responses and uploads; tests do not publish real packages.
 
-The Git release tag is the package version; package manifests do not need to be updated for every release. The release checks can be run explicitly with `npm run release:check`; they create temporary integration projects under the system temp directory and remove them afterward. To publish, expose a Gitea personal access token through the `GITEA_TOKEN` environment variable using your local secret-management method, then run:
+Publishing a GitHub release runs `.github/workflows/release.yml`. Its checkout uses the release tag: after changing release tooling, create a new tag on the corrected commit. Re-running an older failed run still uses its original workflow and tagged sources. Its tag, such as `v0.1.10`, determines all package and peer-dependency versions; the leading `v` is removed for package metadata. The workflow builds and checks the packages, then runs:
 
 ```sh
-npm run release:private
+npm run release:github
 ```
 
-The command verifies organization privacy, builds the four tarballs, checks whether any version already exists, and publishes Core, the Cloudflare adapter, the Node adapter and then the initializer to the fixed Gitea registry. It does not run the integration suite or scaffold test projects. It never uses the public npm registry as a publishing fallback. Existing versions are not overwritten. If a later upload fails after an earlier one succeeds, the release is partially published; inspect the registry and publish only the missing artifact after correcting the failure, retaining the privacy check. The script intentionally refuses a blind full retry when a version already exists.
+For a manual run, supply `NODE_AUTH_TOKEN` through your secret-management method and `HONOVEL_RELEASE_TAG` as the desired version before invoking that command. The script checks all four package versions against GitHub Packages before the first upload. Failed authentication, registry errors and existing versions stop publishing. Uploads use a temporary npm configuration containing an environment-variable reference; the temporary configuration is removed afterward. The script does not fall back to another registry.
 
-The four package manifests currently declare `license: MIT`; registry access is configured separately through `publishConfig` and organization visibility. The Core publishes the TypeScript source needed for static compiler analysis alongside compiled ESM. Runtime import resolution does not load the compiler or TypeScript. Installed dependencies do include TypeScript for build-time compilation; bundlers can tree-shake runtime exports.
+A later upload can still fail after an earlier package has published. Inspect the package versions before retrying: an existing version is never overwritten, and the full script refuses to republish it. Run the tests before manual publication; the publishing command itself builds tarballs but does not run the full integration suite.
 
 ## Framework development checks
 
@@ -63,9 +60,7 @@ The workflows live under `.github/workflows/`:
 
 - `ci.yml` checks runtime package builds, framework tests and packed Nuxt/API-only integration projects on pushes to `main` and pull requests. A separate job verifies the GitHub Pages documentation build.
 - `docs.yml` builds and publishes the documentation on every push to `main`. It can also be started manually. The build uploads a Pages artifact, and the dependent deployment job publishes it to the `github-pages` environment. Deployment is restricted to `main`.
-- `release.yml` runs on published GitHub releases and uses `github.event.release.tag_name` as the package version. It retains the existing private-registry publishing script and requires the repository secret `HONOVEL_PACKAGES_TOKEN` with the Gitea permissions described above. Moving the workflow to GitHub does not change the package registry.
-
-The obsolete `.gitea/workflows/release.yml` has been replaced by the GitHub release workflow.
+- `release.yml` runs on published GitHub releases and uses `github.event.release.tag_name` as the package version. It runs `npm run release:github` and authenticates to GitHub Packages using `GITHUB_TOKEN` with `packages: write`.
 
 ## Documentation deployment
 
@@ -107,6 +102,6 @@ cd my-api
 npm run dev
 ```
 
-For the public distribution, the initializer installs `@honovel/core`, its selected runtime adapter and public dependencies from npm. Private Gitea registry/token configuration above belongs to the internal release workflow. Both project modes serve `GET /api/health` and include a central `src/database/main` with a provider, an empty schema barrel and a migrations directory. Both export the Worker app directly and Wrangler compiles `.honovel/index.js`. Nuxt projects additionally include frontend source and a Workers Static Assets binding; API-only projects omit all frontend files and dependencies. Both project modes include the full Honovel CLI, the published TypeScript language-service plugin, and shared Core CLI helpers. Application tables and SQL migrations are not pre-generated; add/export a schema and generate/review a migration before applying it. Additional databases remain under `src/database/<name>/`.
+For the public distribution, the initializer installs `@honovel/core` and `@honovel/cloudflare` from GitHub Packages and other dependencies from the public npm registry. Configure the scope and authentication first. Both project modes serve `GET /api/health` and include a central `src/database/main` with a provider, an empty schema barrel and a migrations directory. Both export the Worker app directly and Wrangler compiles `.honovel/index.js`. Nuxt projects additionally include frontend source and a Workers Static Assets binding; API-only projects omit all frontend files and dependencies. Both project modes include the full Honovel CLI, the published TypeScript language-service plugin, and shared Core CLI helpers. Application tables and SQL migrations are not pre-generated; add/export a schema and generate/review a migration before applying it. Additional databases remain under `src/database/<name>/`.
 
-References: [Gitea npm registry](https://docs.gitea.com/usage/packages/npm/), [Gitea package ownership and access](https://docs.gitea.com/usage/packages/overview/#access-restrictions).
+References: [GitHub npm registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry), [Publishing Node.js packages](https://docs.github.com/en/actions/tutorials/publish-packages/publish-nodejs-packages).

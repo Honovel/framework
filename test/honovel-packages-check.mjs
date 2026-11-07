@@ -6,24 +6,17 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
-import { packPackages, root } from '../scripts/pack-packages.mjs'
+import { packPackages, root, registry } from '../scripts/pack-packages.mjs'
+import { releasePackages } from '../scripts/release-github.mjs'
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'honovel-packages-'))
 const env = { ...process.env, npm_config_cache: path.join(temporary, 'npm-cache') }
 process.env.npm_config_cache = env.npm_config_cache
 try {
-  const releaseScript = path.join(root, 'scripts/release-private.mjs')
-  const noToken = spawnSync(process.execPath, [releaseScript], { env: { ...env, GITEA_TOKEN: '' }, encoding: 'utf8' })
+  const releaseScript = path.join(root, 'scripts/release-github.mjs')
+  const noToken = spawnSync(process.execPath, [releaseScript], { env: { ...env, NODE_AUTH_TOKEN: '' }, encoding: 'utf8' })
   assert.notEqual(noToken.status, 0)
-  assert.match(noToken.stderr, /Set GITEA_TOKEN/)
-  const publicOrganization = 'data:text/javascript,' + encodeURIComponent(
-    "globalThis.fetch = async () => new Response(JSON.stringify({ visibility: 'public' }))",
-  )
-  const publicRelease = spawnSync(process.execPath, ['--import', publicOrganization, releaseScript], {
-    env: { ...env, GITEA_TOKEN: 'local-test-placeholder' }, encoding: 'utf8',
-  })
-  assert.notEqual(publicRelease.status, 0)
-  assert.match(publicRelease.stderr, /must have private visibility/)
+  assert.match(noToken.stderr, /Set NODE_AUTH_TOKEN/)
   const coreMetadata = JSON.parse(fs.readFileSync(path.join(root, 'core/package.json'), 'utf8'))
   const cloudflareMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/cloudflare/package.json'), 'utf8'))
   const nodeMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/node/package.json'), 'utf8'))
@@ -42,14 +35,48 @@ try {
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/cloudflare/package.json'), 'utf8')).version, cloudflareMetadata.version)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/node/package.json'), 'utf8')).version, nodeMetadata.version)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/create-honovel/package.json'), 'utf8')).version, initializerMetadata.version)
-  const privateRegistryPreflight = 'data:text/javascript,' + encodeURIComponent(
-    "globalThis.fetch = async (url) => url.includes('/api/v1/orgs/') ? new Response(JSON.stringify({ visibility: 'private' })) : new Response('{}', { status: 503 })",
-  )
-  const bareTagRelease = spawnSync(process.execPath, ['--import', privateRegistryPreflight, releaseScript], {
-    env: { ...env, GITEA_TOKEN: 'local-test-placeholder', HONOVEL_RELEASE_TAG: records[0].version }, encoding: 'utf8',
+  assert.equal(registry, 'https://npm.pkg.github.com/')
+  for (const metadata of [coreMetadata, cloudflareMetadata, nodeMetadata, initializerMetadata]) {
+    assert.equal(metadata.publishConfig.registry, registry)
+    assert.equal(metadata.repository.url, 'git+https://github.com/Honovel/framework.git')
+  }
+  const preflights = []
+  const uploads = []
+  let authFile
+  await releasePackages({
+    token: 'local-test-placeholder', version: records[0].version,
+    pack: () => records,
+    request: async (url, options) => {
+      assert.ok(url.startsWith(registry))
+      assert.equal(options.headers.Authorization, 'Bearer local-test-placeholder')
+      assert.equal(options.redirect, 'error')
+      preflights.push(url)
+      return new Response('{}', { status: preflights.length === 1 ? 404 : 200 })
+    },
+    publish: async (record, npmrc, token) => {
+      assert.equal(preflights.length, records.length, 'Check all packages before uploading any')
+      assert.equal(token, 'local-test-placeholder')
+      assert.equal(fs.readFileSync(npmrc, 'utf8'), '@honovel:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}\n')
+      assert.equal(fs.statSync(npmrc).mode & 0o777, 0o600)
+      authFile = npmrc
+      uploads.push(record.name)
+    },
+    log: () => {},
   })
-  assert.notEqual(bareTagRelease.status, 0)
-  assert.match(bareTagRelease.stderr, /Registry preflight failed/)
+  assert.deepEqual(uploads, records.map((record) => record.name))
+  assert.equal(fs.existsSync(authFile), false)
+  for (const status of [401, 403, 503]) {
+    await assert.rejects(releasePackages({
+      token: 'local-test-placeholder', pack: () => records,
+      request: async () => new Response('{}', { status }),
+      publish: () => assert.fail('Preflight errors must not upload packages'),
+    }), (error) => error.message === `GitHub Packages preflight failed (HTTP ${status}). Nothing was published.`)
+  }
+  await assert.rejects(releasePackages({
+    token: 'local-test-placeholder', pack: () => records,
+    request: async () => new Response(JSON.stringify({ versions: { [records[0].version]: {} } })),
+    publish: () => assert.fail('Existing versions must not be uploaded again'),
+  }), /already exists/)
   const cliRoot = path.join(temporary, 'cli')
   fs.mkdirSync(cliRoot)
   execFileSync('npm', ['install', '--prefix', cliRoot, '--ignore-scripts', '--no-audit', '--no-fund', records[3].tarball], { env, stdio: 'pipe' })

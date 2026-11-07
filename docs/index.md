@@ -37,7 +37,7 @@ Start a new application with:
 npm create @honovel/honovel@latest my-app
 ```
 
-The installer creates a Cloudflare Workers backend and lets you choose a Nuxt frontend or API-only setup. It uses the published `@honovel/create-honovel` npm package. The source repository is [Honovel/framework on GitHub](https://github.com/Honovel/framework); you do not need to clone it or configure a private registry to follow the public quickstart.
+The installer creates a Cloudflare Workers backend and lets you choose a Nuxt frontend or API-only setup. It uses `@honovel/create-honovel` from GitHub Packages. The source repository is [Honovel/framework on GitHub](https://github.com/Honovel/framework); you do not need to clone it. Complete the [GitHub Packages authentication setup](/getting-started#github-packages-authentication) before running the initializer.
 
 With Nuxt:
 

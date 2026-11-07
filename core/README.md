@@ -2,10 +2,11 @@
 
 A TypeScript compiler and small runtime for Hono applications. Includes class-based dependency injection, controllers, validation, OpenAPI, and typed lazy database providers. Application deployment remains runtime-owned.
 
-Install from the private Honovel Gitea registry after authenticating:
+Install from GitHub Packages after signing in with a GitHub personal access token (classic) with `read:packages`:
 
 ```sh
-npm config set @honovel:registry https://npm.pkg.github.com/
+npm config set --location=user @honovel:registry https://npm.pkg.github.com/
+npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
 npm install @honovel/core hono drizzle-orm zod
 ```
 
@@ -17,7 +18,7 @@ Public APIs are imported from `@honovel/core`. Configure the editor plugin as `@
 
 TypeScript source files are included as type/AST inputs because Honovel's compiler reads class and decorator declarations. Runtime imports resolve to compiled ESM; TypeScript and the compiler are not imported by the runtime entrypoint. No application code, credentials, or database migrations are included in this package.
 
-This package is proprietary and intended for the private Honovel organization registry. See the repository's publishing guide for releases and authentication.
+The package is associated with `https://github.com/Honovel/framework` and published to GitHub Packages. See the repository's publishing guide for releases and authentication.
 
 Shared starter tooling is also provided by the CLI: `honovel frontend:build`
 generates and copies Nuxt assets. `honovel cloudflare:compile`, `cloudflare:build`,

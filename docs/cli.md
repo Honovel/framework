@@ -9,6 +9,8 @@ npm run honovel -- list
 
 ## Create a project
 
+First complete the [GitHub Packages authentication setup](/getting-started#github-packages-authentication).
+
 ```bash
 npm create @honovel/honovel@latest my-app
 npm create @honovel/honovel@latest my-api -- --api-only

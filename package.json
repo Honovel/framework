@@ -14,7 +14,6 @@
     "test:packages": "node test/honovel-packages-check.mjs",
     "release:check": "npm --prefix core run build && npm test && npm run test:packages",
     "smoke": "npm run package:build && npm run test:packages",
-    "release:private": "node scripts/release-private.mjs",
     "docs:install": "npm --prefix docs install",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
@@ -28,7 +27,8 @@
     "typecheck": "node test/run.mjs typecheck",
     "test": "node test/run.mjs",
     "deploy": "node test/run.mjs deploy",
-    "cf-typegen": "node test/run.mjs cf-typegen"
+    "cf-typegen": "node test/run.mjs cf-typegen",
+    "release:github": "node scripts/release-github.mjs"
   },
   "dependencies": {
     "@honovel/core": "file:./core",

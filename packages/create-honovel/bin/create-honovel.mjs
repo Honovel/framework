@@ -88,7 +88,7 @@ async function main() {
     // Keep the scaffold output focused on actionable install/audit information.
     const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--loglevel=error'], { cwd: target, stdio: 'inherit', shell: process.platform === 'win32' })
     if (result.error || result.status !== 0) {
-      throw new Error(`Project created at ${target}, but npm install failed. Check private registry authentication and run npm install there to retry.`)
+      throw new Error(`Project created at ${target}, but npm install failed. Check GitHub Packages authentication and run npm install there to retry.`)
     }
   }
   console.log(`Created ${target} (Cloudflare Workers, ${frontend === 'nuxt' ? 'Nuxt frontend' : 'API-only'})\n\nNext:\n  cd ${name}\n${install ? '' : '  npm install\n'}  npm run dev`)

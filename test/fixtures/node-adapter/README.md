@@ -79,6 +79,6 @@ Keep the runtime-specific `serve(...)` call in `index.ts`, where the complete Ho
 
 Copy `.env.example` to `.env` when local environment configuration is needed. `APP_DEBUG=false` is the safe default; set it to `true` locally to include the exception name and stack trace in otherwise hidden HTTP 500 responses. Never enable it in production.
 
-The Core and compiler come from the private `@honovel/core` package, with no copied `core/` directory. Configure private registry authentication in your user npm config or CI secrets. The project `.npmrc` contains only the scope-to-registry mapping.
+The Core and compiler come from the `@honovel/core` package on GitHub Packages, with no copied `core/` directory. Configure GitHub Packages authentication in your user npm config or CI secrets. The project `.npmrc` contains only the scope-to-registry mapping.
 
 Build and runtime helpers are shipped in `@honovel/core` and invoked through the `honovel` CLI. The starter does not copy a `scripts/` directory. `honovel frontend:build` generates the Nuxt frontend; Cloudflare tooling is available as `honovel cloudflare:<command>`.

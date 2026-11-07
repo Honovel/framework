@@ -1,12 +1,12 @@
 {
   "name": "@honovel/create-honovel",
   "version": "0.1.9",
-  "description": "Create a Honovel application using the private Honovel registry",
+  "description": "Create a Cloudflare Workers application with an optional Nuxt frontend",
   "type": "module",
   "license": "MIT",
   "engines": { "node": ">=22" },
   "bin": { "create-honovel": "./bin/create-honovel.mjs" },
   "files": ["bin", "template", "README.md"],
   "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "packages/create-honovel" },
-  "publishConfig": { "registry": "https://npm.pkg.github.com/", "access": "restricted" }
+  "publishConfig": { "registry": "https://npm.pkg.github.com/", "access": "public" }
 }

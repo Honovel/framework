@@ -1,5 +1,12 @@
 # Create Honovel
 
+Configure GitHub Packages and sign in once using your GitHub username and a personal access token (classic) with `read:packages`:
+
+```sh
+npm config set --location=user @honovel:registry https://npm.pkg.github.com/
+npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
+```
+
 Create a Cloudflare Workers application with an optional Nuxt frontend:
 
 ```sh
@@ -18,4 +25,4 @@ With Nuxt, `npm run dev` starts the backend and frontend; open `http://localhost
 
 For API-only projects, `npm run dev` starts only Wrangler at `http://localhost:8788`. There is no `frontend/` directory, Nuxt/Vue/Tailwind dependency, frontend npm script or static assets configuration. Build, typecheck and deployment only process the backend.
 
-The current package publishing configuration targets the private Honovel registry. When using that distribution, configure authentication in user npm configuration; tokens are never copied into generated projects.
+Packages are published to GitHub Packages and linked to `Honovel/framework`. Authentication is required even for public package installation. Generated projects contain the scope mapping, but never copy tokens.

@@ -22,15 +22,15 @@ export function packPackages(destination = path.join(root, 'dist/packages'), ver
         fs.cpSync(source, packageRoot, { recursive: true })
         const metadataPath = path.join(packageRoot, 'package.json')
         const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'))
-        metadata.version = version
+        metadata.version = version.replace(/^v/, '')
         if (metadata.peerDependencies?.['@honovel/core']) {
-          metadata.peerDependencies['@honovel/core'] = version
+          metadata.peerDependencies['@honovel/core'] = version.replace(/^v/, '')
         }
         fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n')
       }
       const metadata = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'))
-      if (metadata.publishConfig?.registry !== registry || metadata.publishConfig?.access !== 'restricted') {
-        throw new Error(`${directory} must target the private Honovel registry.`)
+      if (metadata.publishConfig?.registry !== registry || metadata.publishConfig?.access !== 'public') {
+        throw new Error(`${directory} must target GitHub Packages.`)
       }
       const [record] = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', destination], {
         cwd: packageRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'],

@@ -30,7 +30,7 @@ Use `--api-only` (or `--frontend=none`) to generate a project without frontend f
 | Configuration | Wrangler bindings and application runtime wrappers |
 | Frontend | Optional Nuxt SSG/CSR via Workers Static Assets |
 
-Infrastructure is selected through DI contracts. Applications can replace cache, queue and lock implementations without changing business services. The commands below use the public npm initializer; source is available on [GitHub](https://github.com/Honovel/framework).
+Infrastructure is selected through DI contracts. Applications can replace cache, queue and lock implementations without changing business services. The commands below use the initializer from GitHub Packages after the [authentication setup](/getting-started#github-packages-authentication); source is available on [GitHub](https://github.com/Honovel/framework).
 
 ## Cloudflare Workers
 

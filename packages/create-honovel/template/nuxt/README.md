@@ -94,7 +94,7 @@ Keep `index.ts` as the Worker entrypoint and keep runtime bindings in `AppEnv`. 
 
 Copy `.env.example` to `.env` for local Wrangler configuration. `APP_DEBUG=false` is the safe default; set it to `true` locally to include the exception name and stack trace in otherwise hidden HTTP 500 responses. Never enable it in production.
 
-The private Core is installed as `@honovel/core`; no Core source is copied into this project. Configure Gitea authentication in user npm configuration or CI secrets. The generated `.npmrc` contains only the registry mapping.
+Core is installed from GitHub Packages as `@honovel/core`; no Core source is copied into this project. Configure GitHub Packages authentication in user npm configuration or CI secrets. The generated `.npmrc` contains only the registry mapping.
 
 Build and runtime helpers are shipped in `@honovel/core` and invoked through the `honovel` CLI. The starter does not copy a `scripts/` directory. `honovel frontend:build` generates the Nuxt frontend; Cloudflare tooling is available as `honovel cloudflare:<command>`.
 
