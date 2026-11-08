@@ -6,6 +6,8 @@ npm run dev
 
 The starter runs a Nuxt 4 frontend and the Honovel Worker together. Open `http://localhost:5173`; Nuxt proxies `/api`, `/swagger`, and `/openapi.json` to the local Wrangler backend. Honovel prefers backend port 8788 and automatically picks a free port when 8788 is already in use, while the public frontend URL stays fixed on 5173. The sample frontend calls `GET /api/health`. In production, `nuxt generate` prerenders the frontend and Honovel deploys the generated files with the Worker as Cloudflare Static Assets, so frontend assets and API routes share one origin and one deployment.
 
+The combined dev command uses scrolling logs with `[Nuxt]` prefixes for frontend output. Nuxt's fullscreen terminal UI is disabled so it cannot overwrite the Worker logs or the app link. Press Ctrl+C to stop both servers.
+
 The frontend includes Tailwind CSS through its Vite plugin and a locally bundled Manrope font. Customize colors and typography in `frontend/app/assets/css/main.css` (`@theme`), and use utility classes directly in Vue components. Pages live in `frontend/app/pages/`.
 
 The default production rendering mode is SSG. Nuxt prerenders discoverable pages during the build and hydrates them in the browser. Pure CSR is also possible with `ssr: false` in `frontend/nuxt.config.ts`. Request-time SSR and ISR are not supported by the current Honovel starter because no Nuxt/Nitro server runtime is deployed.

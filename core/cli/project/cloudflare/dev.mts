@@ -1,6 +1,6 @@
 import net from 'node:net'
 import { spawn } from 'node:child_process'
-import { forwardBackendOutput } from './dev-output.mjs'
+import { forwardBackendOutput, forwardFrontendOutput } from './dev-output.mjs'
 
 const debug = process.argv.includes('--debug')
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
@@ -44,10 +44,17 @@ console.log(`[Honovel] Open app: ${appUrl}`)
 console.log(`[Honovel] Backend: internal port ${backendPort} (proxied by Nuxt)`)
 
 const backendScript = debug ? 'dev:backend:debug' : 'dev:backend'
-const backend = spawn(npm, ['run', backendScript], { stdio: ['inherit', 'pipe', 'pipe'], env })
+// Both tools share this terminal. Give neither child an interactive terminal
+// that could clear or redraw the other tool's output.
+const backend = spawn(npm, ['--silent', 'run', backendScript], { stdio: ['ignore', 'pipe', 'pipe'], env })
 forwardBackendOutput(backend.stdout, process.stdout, { appUrl, backendPort })
 forwardBackendOutput(backend.stderr, process.stderr, { appUrl, backendPort })
-const frontend = spawn(npm, ['run', 'dev:frontend'], { stdio: 'inherit', env })
+const frontend = spawn(npm, ['--silent', 'run', 'dev:frontend'], {
+  stdio: ['ignore', 'pipe', 'pipe'],
+  env: { ...env, NUXT_TUI: 'plain' },
+})
+forwardFrontendOutput(frontend.stdout, process.stdout)
+forwardFrontendOutput(frontend.stderr, process.stderr)
 const children = [backend, frontend]
 let shuttingDown = false
 

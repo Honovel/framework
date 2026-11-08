@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { once } from 'node:events'
 import { PassThrough } from 'node:stream'
-import { forwardBackendOutput } from '../core/cli/project/cloudflare/dev-output.mjs'
+import { forwardBackendOutput, forwardFrontendOutput } from '../core/cli/project/cloudflare/dev-output.mjs'
 
 async function capture(chunks, backendPort = 8788) {
   const input = new PassThrough()
@@ -40,5 +40,18 @@ for (const host of ['127.0.0.1', 'localhost', '[::1]']) {
   assert.equal(output.match(/Open app: http:\/\/localhost:5173/g)?.length, 2)
   assert.ok(!output.includes(`http://${host}:49152`))
 }
+
+// Frontend output cannot move the cursor or erase the shared terminal. Keep
+// warnings/errors visible and identify their source, even across pipe chunks.
+const frontendInput = new PassThrough()
+const frontendOutput = new PassThrough()
+let frontendText = ''
+frontendOutput.on('data', (chunk) => { frontendText += chunk.toString() })
+const frontendLines = forwardFrontendOutput(frontendInput, frontendOutput)
+const frontendClosed = once(frontendLines, 'close')
+frontendInput.write('\u001b[2J\u001b[HNuxt ready\r\n\n\u001b[33mWarn')
+frontendInput.end('ing: check config\u001b[0m\nError: frontend failed')
+await frontendClosed
+assert.equal(frontendText, '[Nuxt] Nuxt ready\n[Nuxt] Warning: check config\n[Nuxt] Error: frontend failed\n')
 
 console.log('[Honovel] Dev output check passed.')
