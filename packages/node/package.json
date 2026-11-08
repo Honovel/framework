@@ -10,8 +10,8 @@
     ".": { "types": "./index.ts", "import": "./dist/index.js" },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "index.ts", "cache", "queue", "cron", "scripts/build-package.mjs", "README.md"],
-  "scripts": { "build": "npm run typecheck && node scripts/build-package.mjs", "typecheck": "tsc -p tsconfig.json", "prepack": "npm run build" },
+  "files": ["dist", "index.ts", "cache", "queue", "cron", "scripts", "README.md"],
+  "scripts": { "build": "npm run typecheck && esbuild scripts/build-package.mts --bundle --platform=node --format=esm --packages=external --outfile=scripts/build-package.mjs && node scripts/build-package.mjs", "typecheck": "tsc -p tsconfig.json", "prepack": "npm run build" },
   "peerDependencies": {
     "@honovel/core": "^0.1.9"
   },

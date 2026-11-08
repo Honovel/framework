@@ -8,11 +8,11 @@
     }
   },
   "scripts": {
-    "package:build": "npm --prefix core run build && npm --prefix packages/cloudflare run build && npm --prefix packages/node run build",
-    "package:pack": "node scripts/pack-packages.mjs",
-    "create:local": "node scripts/create-local.mjs",
-    "test:packages": "node test/honovel-packages-check.mjs",
-    "release:check": "npm run package:build && npm test && npm run test:packages",
+    "package:build": "npm run build:tooling && npm --prefix core run build && npm --prefix packages/cloudflare run build && npm --prefix packages/node run build",
+    "package:pack": "npm run build:tooling && node scripts/pack-packages.mjs",
+    "create:local": "npm run build:tooling && node scripts/create-local.mjs",
+    "test:packages": "npm run build:tooling && node test/honovel-packages-check.mjs",
+    "release:check": "npm run typecheck:tooling && npm run package:build && npm test && npm run test:packages",
     "smoke": "npm run package:build && npm run test:packages",
     "docs:install": "npm --prefix docs install",
     "docs:dev": "npm --prefix docs run dev",
@@ -20,17 +20,20 @@
     "docs:preview": "npm --prefix docs run preview",
     "docs:preview:cloudflare": "npm run docs:build && wrangler dev --config docs/wrangler.jsonc --port 4174",
     "docs:deploy": "npm run docs:build && wrangler deploy --config docs/wrangler.jsonc",
-    "dev": "node test/run.mjs dev",
-    "honovel": "node core/cli/honovel.mjs",
-    "compile": "node test/run.mjs compile",
-    "build": "node test/run.mjs build",
-    "typecheck": "node test/run.mjs typecheck",
-    "test": "node test/run.mjs && npm run test:release",
-    "deploy": "node test/run.mjs deploy",
-    "cf-typegen": "node test/run.mjs cf-typegen",
-    "release:github": "node scripts/release-github.mjs",
-    "test:release": "node --test test/release.test.mjs",
-    "release:npm": "node scripts/release-npm.mjs"
+    "dev": "npm run build:tooling && node test/run.mjs dev",
+    "honovel": "npm run build:tooling && node core/cli/honovel.mjs",
+    "compile": "npm run build:tooling && node test/run.mjs compile",
+    "build": "npm run build:tooling && node test/run.mjs build",
+    "typecheck": "npm run typecheck:tooling && npm run build:tooling && node test/run.mjs typecheck",
+    "test": "npm run build:tooling && node test/run.mjs && npm run test:release",
+    "deploy": "npm run build:tooling && node test/run.mjs deploy",
+    "cf-typegen": "npm run build:tooling && node test/run.mjs cf-typegen",
+    "release:github": "npm run build:tooling && node scripts/release-github.mjs",
+    "test:release": "npm run build:tooling && node --test test/release.test.mjs",
+    "release:npm": "npm run build:tooling && node scripts/release-npm.mjs",
+    "build:tooling": "esbuild scripts/build-tooling.mts --bundle --platform=node --format=esm --packages=external --outfile=.honovel-tooling/build.mjs && node .honovel-tooling/build.mjs",
+    "typecheck:tooling": "tsc -p tsconfig.tooling.json",
+    "prepare": "npm run build:tooling && npm rebuild @honovel/core"
   },
   "dependencies": {
     "@honovel/core": "file:./core",
@@ -39,11 +42,18 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.28.1",
     "honovel-typescript-plugin": "file:core/tools/honovel-typescript-plugin",
     "sql.js": "^1.14.2",
     "typescript": "6.0.3",
     "wrangler": "^4.110.0"
+  },
+  "imports": {
+    "#honovel-test/*": {
+      "types": "./core/*",
+      "default": "./.honovel/core/*"
+    }
   }
 }

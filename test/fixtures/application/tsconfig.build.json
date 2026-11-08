@@ -11,5 +11,6 @@
     "src/**/*.ts",
     "core/**/*.ts",
     "worker-configuration.d.ts"
-  ]
+  ],
+  "exclude": ["src/database/**/drizzle.config.ts"]
 }

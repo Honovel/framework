@@ -8,5 +8,7 @@
   "bin": { "create-honovel": "./bin/create-honovel.mjs" },
   "files": ["bin", "template", "README.md"],
   "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "packages/create-honovel" },
-  "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" }
+  "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" },
+  "scripts": {"build": "esbuild bin/create-honovel.mts --platform=node --format=esm --outfile=bin/create-honovel.mjs", "prepack": "npm run build"},
+  "devDependencies": {"esbuild": "^0.28.1"}
 }

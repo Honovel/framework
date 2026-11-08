@@ -48,13 +48,17 @@ The workflow calls `.github/workflows/checks.yml`:
 1. Framework checks build/typecheck runtime packages and run framework plus publishing unit tests.
 2. Integration checks run in parallel: pack the current sources, install temporary Node-backend/Nuxt/API-only applications, and test compilation, production builds and runtime requests.
 3. The integration job creates registry-specific npm and GitHub tarballs from the same compiled runtime and uploads `verified-packages` only after all checks pass.
-4. Separate npmjs and GitHub jobs download those tarballs and publish them without another build or dependency installation.
+4. Separate npmjs and GitHub jobs install the tooling dependencies, download those tarballs and publish them without rebuilding the verified packages.
 
 The integration npm cache persists between CI runs. No test project is deployed. Temporary apps are intentional end-to-end checks that the published initializer and compiler work together; generated projects are deleted afterward. The old Node adapter fixture is backend-only, so Nuxt is installed and built only for the actual Cloudflare Nuxt starter.
 
 The publish helper checks artifact integrity and release version before use. Registry failures stop uploading. On reruns, `--skip-existing` only skips an existing version when its registry integrity exactly matches the prepared tarball; a different or unverifiable artifact requires a new version. Cross-registry publication is not atomic: one registry can succeed while the other fails. Re-run the failed job while the verified artifact is retained (seven days).
 
 ## Local checks and publishing
+
+All maintained JavaScript tooling is written in TypeScript: `.mts` for ESM and `.cts` for the CommonJS TypeScript language-service plugin. `npm install` prepares the executable files, and the root commands rebuild them before running. `npm run build:tooling` regenerates the `.mjs`/`.cjs` files and source maps beside their sources; those outputs are ignored by Git. Published packages include the generated Node entry points, so consumers need no TypeScript loader and still use Node.js 22 or newer.
+
+`npm run typecheck:tooling` checks the CLI, compiler, plugin, scripts, documentation helpers and tests. Tooling has its own configuration so its Node types do not leak into application/Worker types. The migrated tooling checks strict nullability and function contracts; implicit parameter types are still allowed for existing compiler internals. Runtime source retains its existing strict configuration.
 
 ```sh
 npm test                    # framework checks plus fast release-helper tests

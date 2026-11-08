@@ -4,5 +4,11 @@
   "type": "module",
   "scripts": {
     "compile": "node core/compiler/honovel-build.mjs"
+  },
+  "imports": {
+    "#honovel-test/*": {
+      "types": "./core/*",
+      "default": "./.honovel/core/*"
+    }
   }
 }

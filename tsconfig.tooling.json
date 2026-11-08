@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": [
+      "node"
+    ],
+    "noImplicitAny": false
+  },
+  "include": [
+    "core/**/*.mts",
+    "core/**/*.cts",
+    "packages/**/*.mts",
+    "scripts/**/*.mts",
+    "test/**/*.mts",
+    "docs/scripts/**/*.mts",
+    "test/fixtures/application/src/database/main/drizzle.config.ts"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/dist/**"
+  ]
+}

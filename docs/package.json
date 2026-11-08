@@ -3,14 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate:agents": "node scripts/generate-agent-docs.mjs",
+    "generate:agents": "npm run build:tooling && node scripts/generate-agent-docs.mjs",
     "predev": "npm run generate:agents",
     "dev": "vitepress dev .",
     "prebuild": "npm run generate:agents",
     "build": "vitepress build .",
-    "preview": "vitepress preview ."
+    "preview": "vitepress preview .",
+    "build:tooling": "esbuild scripts/*.mts --platform=node --format=esm --outdir=scripts --out-extension:.js=.mjs"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "esbuild": "^0.28.1"
   }
 }

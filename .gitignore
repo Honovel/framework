@@ -4,6 +4,13 @@ dist/
 .honovel.wrangler.jsonc
 .chatgpt/
 .local-tests/
+.honovel-tooling/
+
+# Generated Node tooling; edit the .mts/.cts sources instead.
+*.mjs
+*.mjs.map
+*.cjs
+*.cjs.map
 
 # dev
 .yarn/
