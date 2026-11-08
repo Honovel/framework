@@ -8,14 +8,7 @@ Honovel is a TypeScript framework for building Hono applications with controller
 
 ## Create a project
 
-Use Node.js 22 or newer and npm 11.6 or newer. Honovel packages are published to GitHub Packages. Configure the scope and sign in once with your GitHub username and a personal access token (classic) with `read:packages`:
-
-```bash
-npm config set --location=user @honovel:registry https://npm.pkg.github.com/
-npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
-```
-
-GitHub Packages requires authentication for installation, including public packages. Tokens belong in user npm configuration, never in the project.
+Use Node.js 22 or newer and npm 11.6 or newer. The public npmjs packages require no login to install.
 
 ```bash
 npm create @honovel/honovel@latest my-app

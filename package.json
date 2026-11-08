@@ -12,7 +12,7 @@
     "package:pack": "node scripts/pack-packages.mjs",
     "create:local": "node scripts/create-local.mjs",
     "test:packages": "node test/honovel-packages-check.mjs",
-    "release:check": "npm --prefix core run build && npm test && npm run test:packages",
+    "release:check": "npm run package:build && npm test && npm run test:packages",
     "smoke": "npm run package:build && npm run test:packages",
     "docs:install": "npm --prefix docs install",
     "docs:dev": "npm --prefix docs run dev",
@@ -25,10 +25,12 @@
     "compile": "node test/run.mjs compile",
     "build": "node test/run.mjs build",
     "typecheck": "node test/run.mjs typecheck",
-    "test": "node test/run.mjs",
+    "test": "node test/run.mjs && npm run test:release",
     "deploy": "node test/run.mjs deploy",
     "cf-typegen": "node test/run.mjs cf-typegen",
-    "release:github": "node scripts/release-github.mjs"
+    "release:github": "node scripts/release-github.mjs",
+    "test:release": "node --test test/release.test.mjs",
+    "release:npm": "node scripts/release-npm.mjs"
   },
   "dependencies": {
     "@honovel/core": "file:./core",

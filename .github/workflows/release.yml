@@ -1,7 +1,9 @@
-name: Release Honovel packages to GitHub Packages
+name: Release to npmjs and GitHub Packages
+
 on:
   release:
     types: [published]
+
 permissions:
   contents: read
 
@@ -10,34 +12,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  checks:
+    uses: ./.github/workflows/checks.yml
+    with:
+      version: ${{ github.event.release.tag_name }}
+      upload-packages: true
+
+  npm:
+    needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm install --global npm@11.6.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-packages
+          path: dist/verified-packages
+      - name: Publish verified public npm packages
+        run: npm run release:npm -- --packages-dir dist/verified-packages/npm --skip-existing
+        env:
+          # Optional bootstrap/fallback. Otherwise npm uses trusted publishing (OIDC).
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+  github:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.release.tag_name }}
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          registry-url: https://npm.pkg.github.com
-          scope: '@honovel'
-      # npm 10 / arborist 8 crashes while resolving Nuxt's optional peer
-      # graph ("Cannot read properties of null (reading 'edgesOut')").
-      # npm 11.6+ contains the arborist fix.
-      - name: Use npm 11.6+
-        run: npm install --global npm@11.6.0
-      - run: npm ci
-      - run: npm run package:build
-      - name: Run release checks
-        run: npm run release:check
-        env:
-          HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}
-      - name: Publish all packages to GitHub Packages
-        run: npm run release:github
+          package-manager-cache: false
+      - run: npm install --global npm@11.6.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-packages
+          path: dist/verified-packages
+      - name: Publish verified GitHub packages
+        run: npm run release:github -- --packages-dir dist/verified-packages/github --skip-existing
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}

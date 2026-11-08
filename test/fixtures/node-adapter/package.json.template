@@ -3,51 +3,46 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "imports": { "#src/*": "./src/*.ts" },
-  "engines": { "node": ">=22" },
+  "imports": {
+    "#src/*": "./src/*.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "overrides": {
-    "@esbuild-kit/core-utils": { "esbuild": "^0.25.12" }
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
   },
   "scripts": {
     "honovel": "honovel",
     "compile": "honovel compile",
     "typecheck:backend": "honovel typecheck",
-    "typecheck:frontend": "nuxt prepare frontend && nuxt typecheck frontend",
-    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "typecheck": "npm run typecheck:backend",
     "db:generate": "honovel db:generate --db=main",
     "db:migrate": "honovel db:migrate --db=main",
     "build:backend": "honovel build",
-    "build:frontend": "honovel frontend:build",
-    "build": "npm run typecheck:frontend && npm run build:backend && npm run build:frontend",
+    "build": "honovel build",
     "dev:build": "honovel compile",
     "dev:backend": "cross-env HONOVEL_FRONTEND_DEV_URL=http://localhost:5173 nodemon --watch src --watch index.ts --ext ts,json --exec \"npm run dev:build && node --env-file-if-exists=.env --enable-source-maps --inspect=127.0.0.1:9229 .honovel/index.js\"",
-    "dev:frontend": "nuxt dev frontend --port 5173 --host localhost --strictPort",
-    "dev": "concurrently -k -n api,web \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "npm run dev:backend",
     "start": "node --env-file-if-exists=.env .honovel/index.js"
   },
   "dependencies": {
-    "@fontsource-variable/manrope": "^5.2.8",
     "@honovel/core": "__HONOVEL_VERSION__",
     "@honovel/node": "__HONOVEL_VERSION__",
     "@hono/node-server": "^1.19.0",
     "better-sqlite3": "^13.0.3",
     "hono": "^4.13.8",
     "drizzle-orm": "^0.45.3",
-    "nuxt": "^4.5.2",
-    "vue": "^3.5.22",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.0",
-    "tailwindcss": "^4.1.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.0",
-    "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.11",
     "nodemon": "^3.1.10",
-    "typescript": "^6.0.3",
-    "vite": "^7.1.9",
-    "vue-tsc": "^3.1.1"
+    "typescript": "^6.0.3"
   }
 }

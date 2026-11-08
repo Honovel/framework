@@ -6,23 +6,22 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
-import { packPackages, root, registry } from '../scripts/pack-packages.mjs'
-import { releasePackages } from '../scripts/release-github.mjs'
+import { packPackages, root, registry, githubRegistry } from '../scripts/pack-packages.mjs'
+import { loadPackages } from '../scripts/release-github.mjs'
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'honovel-packages-'))
-const env = { ...process.env, npm_config_cache: path.join(temporary, 'npm-cache') }
+const started = performance.now()
+const cacheDirectory = process.env.HONOVEL_NPM_CACHE ?? path.join(root, '.local-tests/npm-cache')
+const artifactDirectory = process.env.HONOVEL_PACKAGE_ARTIFACTS && path.resolve(process.env.HONOVEL_PACKAGE_ARTIFACTS)
+const env = { ...process.env, npm_config_cache: cacheDirectory }
 process.env.npm_config_cache = env.npm_config_cache
 try {
-  const releaseScript = path.join(root, 'scripts/release-github.mjs')
-  const noToken = spawnSync(process.execPath, [releaseScript], { env: { ...env, NODE_AUTH_TOKEN: '' }, encoding: 'utf8' })
-  assert.notEqual(noToken.status, 0)
-  assert.match(noToken.stderr, /Set NODE_AUTH_TOKEN/)
   const coreMetadata = JSON.parse(fs.readFileSync(path.join(root, 'core/package.json'), 'utf8'))
   const cloudflareMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/cloudflare/package.json'), 'utf8'))
   const nodeMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/node/package.json'), 'utf8'))
   const initializerMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/create-honovel/package.json'), 'utf8'))
   const releaseVersion = process.env.HONOVEL_RELEASE_TAG ?? process.env.GITHUB_REF_NAME ?? '9.9.9'
-  const records = packPackages(path.join(temporary, 'tarballs'), releaseVersion)
+  const records = packPackages(artifactDirectory ? path.join(artifactDirectory, 'npm') : path.join(temporary, 'tarballs'), releaseVersion)
   assert.equal(records[0].name, '@honovel/core')
   assert.equal(records[1].name, '@honovel/cloudflare')
   assert.equal(records[2].name, '@honovel/node')
@@ -35,48 +34,12 @@ try {
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/cloudflare/package.json'), 'utf8')).version, cloudflareMetadata.version)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/node/package.json'), 'utf8')).version, nodeMetadata.version)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/create-honovel/package.json'), 'utf8')).version, initializerMetadata.version)
-  assert.equal(registry, 'https://npm.pkg.github.com/')
+  assert.equal(registry, 'https://registry.npmjs.org/')
   for (const metadata of [coreMetadata, cloudflareMetadata, nodeMetadata, initializerMetadata]) {
     assert.equal(metadata.publishConfig.registry, registry)
     assert.equal(metadata.repository.url, 'git+https://github.com/Honovel/framework.git')
   }
-  const preflights = []
-  const uploads = []
-  let authFile
-  await releasePackages({
-    token: 'local-test-placeholder', version: records[0].version,
-    pack: () => records,
-    request: async (url, options) => {
-      assert.ok(url.startsWith(registry))
-      assert.equal(options.headers.Authorization, 'Bearer local-test-placeholder')
-      assert.equal(options.redirect, 'error')
-      preflights.push(url)
-      return new Response('{}', { status: preflights.length === 1 ? 404 : 200 })
-    },
-    publish: async (record, npmrc, token) => {
-      assert.equal(preflights.length, records.length, 'Check all packages before uploading any')
-      assert.equal(token, 'local-test-placeholder')
-      assert.equal(fs.readFileSync(npmrc, 'utf8'), '@honovel:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}\n')
-      assert.equal(fs.statSync(npmrc).mode & 0o777, 0o600)
-      authFile = npmrc
-      uploads.push(record.name)
-    },
-    log: () => {},
-  })
-  assert.deepEqual(uploads, records.map((record) => record.name))
-  assert.equal(fs.existsSync(authFile), false)
-  for (const status of [401, 403, 503]) {
-    await assert.rejects(releasePackages({
-      token: 'local-test-placeholder', pack: () => records,
-      request: async () => new Response('{}', { status }),
-      publish: () => assert.fail('Preflight errors must not upload packages'),
-    }), (error) => error.message === `GitHub Packages preflight failed (HTTP ${status}). Nothing was published.`)
-  }
-  await assert.rejects(releasePackages({
-    token: 'local-test-placeholder', pack: () => records,
-    request: async () => new Response(JSON.stringify({ versions: { [records[0].version]: {} } })),
-    publish: () => assert.fail('Existing versions must not be uploaded again'),
-  }), /already exists/)
+  console.log('[Honovel] Checking packed initializer and Node adapter backend fixture...')
   const cliRoot = path.join(temporary, 'cli')
   fs.mkdirSync(cliRoot)
   execFileSync('npm', ['install', '--prefix', cliRoot, '--ignore-scripts', '--no-audit', '--no-fund', records[3].tarball], { env, stdio: 'pipe' })
@@ -86,7 +49,7 @@ try {
     assert.notEqual(invalid.status, 0)
     assert.equal(fs.existsSync(path.join(temporary, 'invalid-template')), false)
   }
-  execFileSync(process.execPath, [creator, 'default_sample', '--no-install'], { cwd: temporary, stdio: 'inherit' })
+  execFileSync(process.execPath, [creator, 'default_sample', '--no-install'], { cwd: temporary, stdio: 'pipe' })
   const defaultApplication = path.join(temporary, 'default_sample')
   const defaultMetadata = JSON.parse(fs.readFileSync(path.join(defaultApplication, 'package.json'), 'utf8'))
   assert.equal(defaultMetadata.dependencies['@hono/node-server'], undefined)
@@ -113,8 +76,6 @@ try {
     }
   }
   copyFixture(path.join(root, 'packages/create-honovel/template/common'), nodeFixture)
-  fs.mkdirSync(path.join(nodeFixture, 'frontend'))
-  copyFixture(path.join(root, 'packages/create-honovel/template/nuxt/frontend'), path.join(nodeFixture, 'frontend'))
   copyFixture(path.join(root, 'test/fixtures/node-adapter'), nodeFixture)
   fs.writeFileSync(path.join(nodeFixture, '.env'), 'APP_DEBUG=true\n')
   const application = path.join(temporary, 'sample')
@@ -139,7 +100,7 @@ try {
   assert.match(fs.readFileSync(path.join(application, 'agents.md'), 'utf8'), /https:\/\/honovel-docs\.lutze\.workers\.dev\/llms-full\.txt/)
   assert.match(fs.readFileSync(path.join(application, 'agents.md'), 'utf8'), /src\/features\/<feature>\//)
   assert.match(metadata.scripts['dev:backend'], /--env-file-if-exists=\.env/)
-  assert.match(metadata.scripts.dev, /concurrently/)
+  assert.equal(metadata.scripts.dev, 'npm run dev:backend')
   assert.ok(fs.existsSync(path.join(application, 'src/database/main/MainDatabase.ts')))
   assert.equal(fs.existsSync(path.join(application, 'src/database/main/schema/todos.ts')), false)
   assert.match(fs.readFileSync(path.join(application, 'src/database/main/schema/index.ts'), 'utf8'), /export \{\}/)
@@ -150,14 +111,8 @@ try {
   assert.ok(fs.existsSync(path.join(application, 'src/runtime/InMemoryQueue.ts')))
   assert.ok(fs.existsSync(path.join(application, 'src/runtime/Controller.ts')))
   assert.match(fs.readFileSync(path.join(application, 'src/runtime/Controller.ts'), 'utf8'), /@BaseUrl\('\/api'\)/)
-  assert.ok(fs.existsSync(path.join(application, 'frontend/app/app.vue')))
-  assert.ok(fs.existsSync(path.join(application, 'frontend/app/pages/index.vue')))
-  assert.ok(fs.existsSync(path.join(application, 'frontend/app/pages/about.vue')))
-  assert.ok(fs.existsSync(path.join(application, 'frontend/nuxt.config.ts')))
-  assert.match(fs.readFileSync(path.join(application, 'frontend/app/pages/index.vue'), 'utf8'), /fetch\('\/api\/health'/)
-  assert.equal(metadata.dependencies.nuxt, '^4.5.2')
-  assert.match(metadata.scripts['dev:frontend'], /nuxt dev frontend/)
-  assert.match(metadata.scripts['dev:frontend'], /--strictPort/)
+  assert.equal(fs.existsSync(path.join(application, 'frontend')), false)
+  assert.equal(metadata.dependencies.nuxt, undefined)
   assert.match(fs.readFileSync(path.join(application, 'src/runtime/InMemoryQueue.ts'), 'utf8'), /class AppQueue extends InMemoryQueue/)
   assert.match(fs.readFileSync(path.join(application, 'src/runtime/InMemoryCache.ts'), 'utf8'), /class AppCache extends InMemoryCache/)
   assert.match(fs.readFileSync(path.join(application, 'src/runtime/CacheLock.ts'), 'utf8'), /class AppLock extends CacheLock/)
@@ -317,8 +272,8 @@ export class HealthController extends Controller {
 export class Invalid { constructor(readonly db: MainDatabase) {} query() { return this.db.client.missing } }`)
   assert.throws(() => run('typecheck'))
 
-  // The Workers variant uses the same packed compiler with an actual Wrangler build.
-  execFileSync(process.execPath, [creator, 'worker_sample', '--frontend', 'nuxt', '--no-install'], { cwd: temporary, stdio: 'inherit' })
+  console.log('[Honovel] Checking Cloudflare Nuxt starter: install, build and workerd runtime...')
+  execFileSync(process.execPath, [creator, 'worker_sample', '--frontend', 'nuxt', '--no-install'], { cwd: temporary, stdio: 'pipe' })
   const workerRoot = path.join(temporary, 'worker_sample')
   const workerMetadataPath = path.join(workerRoot, 'package.json')
   const workerMetadata = JSON.parse(fs.readFileSync(workerMetadataPath, 'utf8'))
@@ -488,8 +443,8 @@ export class CleanupCron extends CronJob {
   } finally {
     await worker.dispose()
   }
-  // API-only projects must install, typecheck, build and serve without Nuxt.
-  execFileSync(process.execPath, [creator, 'api_sample', '--api-only', '--no-install'], { cwd: temporary, stdio: 'inherit' })
+  console.log('[Honovel] Checking Cloudflare API-only starter without frontend dependencies...')
+  execFileSync(process.execPath, [creator, 'api_sample', '--api-only', '--no-install'], { cwd: temporary, stdio: 'pipe' })
   execFileSync(process.execPath, [creator, 'api_alias', '--frontend=none', '--no-install'], { cwd: temporary, stdio: 'pipe' })
   const apiRoot = path.join(temporary, 'api_sample')
   const apiMetadataPath = path.join(apiRoot, 'package.json')
@@ -540,7 +495,20 @@ export class CleanupCron extends CronJob {
   } finally {
     await apiWorker.dispose()
   }
-  console.log('[Honovel] Packed Cloudflare Nuxt/API-only starters and Node adapter fixture: install, compiler, DI, bindings, production builds and runtime checks passed.')
+  // Both registry variants use the same compiled runtime. Do not rebuild after
+  // testing; publish jobs receive these verified tarballs as one artifact.
+  const githubDirectory = artifactDirectory ? path.join(artifactDirectory, 'github') : path.join(temporary, 'github-tarballs')
+  const githubRecords = packPackages(githubDirectory, releaseVersion, { targetRegistry: githubRegistry, prebuilt: true })
+  const loaded = loadPackages(githubDirectory, githubRegistry)
+  assert.deepEqual(loaded.map((record) => record.name), records.map((record) => record.name))
+  for (const record of githubRecords) {
+    const metadata = JSON.parse(execFileSync('tar', ['-xOf', record.tarball, 'package/package.json'], { encoding: 'utf8' }))
+    assert.equal(metadata.publishConfig.registry, githubRegistry)
+    assert.equal(metadata.version, records[0].version)
+  }
+  const npmDirectory = path.dirname(records[0].tarball)
+  assert.equal(loadPackages(npmDirectory, registry).length, 4)
+  console.log(`[Honovel] Packed npm/GitHub artifacts, Node adapter, Nuxt and API-only checks passed in ${((performance.now() - started) / 1000).toFixed(1)}s.`)
 } catch (error) {
   if (error.stdout) process.stderr.write(error.stdout.toString().slice(-8000))
   if (error.stderr) process.stderr.write(error.stderr.toString().slice(-8000))

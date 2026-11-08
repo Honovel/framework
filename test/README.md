@@ -16,3 +16,14 @@ separate internal Node adapter fixture. It needs access to the npm registry for 
 
 `fixtures/node-adapter/` preserves Node adapter coverage for existing applications.
 It is an internal test fixture and is not included in the project initializer.
+
+Release helper checks run separately with `npm run test:release` (also included in
+`npm test`). They use simulated registries and uploads, not live publication.
+Integration tests retain their npm download cache under `.local-tests/npm-cache`
+(or `HONOVEL_NPM_CACHE`) while deleting generated test projects. The Node adapter
+fixture is backend-only; the Cloudflare Nuxt starter owns the frontend build test.
+
+CI and releases share `.github/workflows/checks.yml`, running framework and
+integration checks in parallel. On releases, the integration job retains verified
+npm and GitHub tarballs in `HONOVEL_PACKAGE_ARTIFACTS`. Publishing jobs consume
+those artifacts without rebuilding or installing the framework dependencies.

@@ -2,13 +2,13 @@
 
 A TypeScript compiler and small runtime for Hono applications. Includes class-based dependency injection, controllers, validation, OpenAPI, and typed lazy database providers. Application deployment remains runtime-owned.
 
-Install from GitHub Packages after signing in with a GitHub personal access token (classic) with `read:packages`:
+Install the public npm package:
 
 ```sh
-npm config set --location=user @honovel:registry https://npm.pkg.github.com/
-npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
 npm install @honovel/core hono drizzle-orm zod
 ```
+
+Releases are also mirrored to GitHub Packages; installation from that mirror requires GitHub authentication.
 
 Create a project with `npm create @honovel/honovel@latest my-app`. The backend is always Cloudflare Workers; the initializer asks whether to include Nuxt or create an API-only project. Select explicitly with `-- --frontend=nuxt` or `-- --api-only` (`--frontend=none` is equivalent). Non-interactive runs include Nuxt by default. The explicit initializer is `npx @honovel/create-honovel@latest my-app`.
 
@@ -18,7 +18,7 @@ Public APIs are imported from `@honovel/core`. Configure the editor plugin as `@
 
 TypeScript source files are included as type/AST inputs because Honovel's compiler reads class and decorator declarations. Runtime imports resolve to compiled ESM; TypeScript and the compiler are not imported by the runtime entrypoint. No application code, credentials, or database migrations are included in this package.
 
-The package is associated with `https://github.com/Honovel/framework` and published to GitHub Packages. See the repository's publishing guide for releases and authentication.
+The package is associated with `https://github.com/Honovel/framework` and published to npmjs and GitHub Packages. See the repository's publishing guide for releases and authentication.
 
 Shared starter tooling is also provided by the CLI: `honovel frontend:build`
 generates and copies Nuxt assets. `honovel cloudflare:compile`, `cloudflare:build`,

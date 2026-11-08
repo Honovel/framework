@@ -23,5 +23,5 @@
     "esbuild": "^0.28.1"
   },
   "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "packages/node" },
-  "publishConfig": { "registry": "https://npm.pkg.github.com/", "access": "public" }
+  "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" }
 }

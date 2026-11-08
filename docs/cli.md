@@ -9,7 +9,7 @@ npm run honovel -- list
 
 ## Create a project
 
-First complete the [GitHub Packages authentication setup](/getting-started#github-packages-authentication).
+The public npm distribution requires no installation login. If needed, update an old scope mapping as described in [package registry setup](/getting-started#package-registry).
 
 ```bash
 npm create @honovel/honovel@latest my-app
