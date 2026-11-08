@@ -52,6 +52,16 @@ The maintained tooling sources use `.mts` for ESM and `.cts` for the CommonJS ed
 
 Tooling uses a separate TypeScript configuration so Node types do not leak into Worker application types. It checks strict nullability and function contracts while allowing implicit parameter types in existing compiler internals. Runtime source retains its strict configuration.
 
+## Dependency security
+
+Audit the repository, documentation and generated applications separately. The initializer templates are named `package.json.template`, so updates to repository dependencies alone do not update new projects. Keep the framework's peer-dependency minimums and starter ranges aligned with security fixes.
+
+The current starter minimums include Hono 4.13.17, Zod 4.6.7 and Wrangler 4.158.0. Updating Wrangler also updates its Miniflare, Undici and Sharp dependencies. Nuxt uses targeted overrides for `@vercel/nft` → Glob 14.0.2+ and `readdir-glob` → Minimatch 11.0.1+ until upstream adopts those patched majors. The initializer merges these with the shared Drizzle/esbuild override; packed-project integration tests cover the combined configuration.
+
+VitePress 1.6 still requests Vite 5, which has no patched release for the current advisories. The docs-only override selects patched Vite 6.4.4+ and is checked with a Pages build and local dev-server smoke test. Remove the override when a stable VitePress release uses a patched Vite version directly.
+
+As of 2026-11-08, Nuxt's Nitro build dependency still includes `deepmerge` 4.3.1, affected by [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4). No patched version is published. This produces multiple low-severity audit entries along the same dependency chain; do not treat `npm audit fix --force` suggesting an older Nuxt release as a validated fix. The Nuxt starter prerenders static assets for Workers and does not deploy a Nitro server. Keep tracking the upstream fix rather than hiding the advisory or downgrading dependencies without validation.
+
 ## Documentation deployment
 
 The public documentation is [honovel.github.io/framework](https://honovel.github.io/framework/). `.github/workflows/docs.yml` publishes it through GitHub Pages, independently of npm releases. Framework CI also verifies the Pages build.

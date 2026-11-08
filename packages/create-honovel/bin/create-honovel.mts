@@ -62,7 +62,7 @@ async function main() {
           const overlay = JSON.parse(content)
           const merged = { ...current, ...overlay }
           if (outputName === 'package.json') {
-            for (const section of ['scripts', 'dependencies', 'devDependencies']) {
+            for (const section of ['scripts', 'dependencies', 'devDependencies', 'overrides']) {
               merged[section] = { ...current[section], ...overlay[section] }
             }
           }
