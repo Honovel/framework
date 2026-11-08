@@ -80,7 +80,7 @@ export class UpdateTodoRequest extends FormRequest(
   assert.throws(() => drizzleCommand.drizzleKitRuns(['migrate', '--all', '--config=custom.ts']), /not a combination/)
   await new MakeControllerCommand(context).handle({ name: 'Admin/User' })
   await new MakeMiddlewareCommand(context).handle({ name: 'Auth' })
-  const packageContext = { ...context, frameworkImport: '@honovel/core' }
+  const packageContext = { ...context, frameworkImport: 'honovel' }
   await new MakeControllerCommand(packageContext).handle({ name: 'Package/User' })
   await new MakeMiddlewareCommand(packageContext).handle({ name: 'Admin/Auth' })
   await new MakeRequestCommand(context).handle({ name: 'CreateUser' })
@@ -144,11 +144,11 @@ export class UpdateTodoRequest extends FormRequest(
   )
 
   const middleware = fs.readFileSync(path.join(projectRoot, 'src/middleware/Admin/AuthMiddleware.ts'), 'utf8')
-  assert.match(middleware, /from '@honovel\/core'/)
+  assert.match(middleware, /from 'honovel'/)
   const packageController = fs.readFileSync(path.join(projectRoot, 'src/controllers/Package/UserController.ts'), 'utf8')
-  assert.match(packageController, /from '@honovel\/core'/)
+  assert.match(packageController, /from 'honovel'/)
   const packageRequest = fs.readFileSync(path.join(projectRoot, 'src/requests/Package/CreateUserRequest.ts'), 'utf8')
-  assert.match(packageRequest, /from '@honovel\/core'/)
+  assert.match(packageRequest, /from 'honovel'/)
 
   await assert.rejects(() => new MakeFeatureCommand(context).handle({ name: 'appointments' }), /already exists/)
   assert.equal(fs.existsSync(path.join(projectRoot, 'src/controllers/Admin/UserController.ts')), true)

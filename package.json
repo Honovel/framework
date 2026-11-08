@@ -1,5 +1,5 @@
 {
-  "name": "honovel",
+  "name": "honovel-workspace",
   "private": true,
   "type": "module",
   "overrides": {
@@ -8,7 +8,7 @@
     }
   },
   "scripts": {
-    "package:build": "npm run build:tooling && npm --prefix core run build && npm --prefix packages/cloudflare run build && npm --prefix packages/node run build",
+    "package:build": "npm run build:tooling && npm --prefix core run build && npm --prefix packages/create-honovel run build",
     "package:pack": "npm run build:tooling && node scripts/pack-packages.mjs",
     "create:local": "npm run build:tooling && node scripts/create-local.mjs",
     "test:packages": "npm run build:tooling && node test/honovel-packages-check.mjs",
@@ -28,15 +28,14 @@
     "test": "npm run build:tooling && node test/run.mjs && npm run test:release",
     "deploy": "npm run build:tooling && node test/run.mjs deploy",
     "cf-typegen": "npm run build:tooling && node test/run.mjs cf-typegen",
-    "release:github": "npm run build:tooling && node scripts/release-github.mjs",
     "test:release": "npm run build:tooling && node --test test/release.test.mjs",
     "release:npm": "npm run build:tooling && node scripts/release-npm.mjs",
     "build:tooling": "esbuild scripts/build-tooling.mts --bundle --platform=node --format=esm --packages=external --outfile=.honovel-tooling/build.mjs && node .honovel-tooling/build.mjs",
     "typecheck:tooling": "tsc -p tsconfig.tooling.json",
-    "prepare": "npm run build:tooling && npm rebuild @honovel/core"
+    "prepare": "npm run build:tooling && npm rebuild honovel"
   },
   "dependencies": {
-    "@honovel/core": "file:./core",
+    "honovel": "file:./core",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.8",
     "zod": "^4.6.5"

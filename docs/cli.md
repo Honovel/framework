@@ -9,17 +9,17 @@ npm run honovel -- list
 
 ## Create a project
 
-The public npm distribution requires no installation login. If needed, update an old scope mapping as described in [package registry setup](/getting-started#package-registry).
+The public npm distribution requires no installation login. See [package registry setup](/getting-started#package-registry) for package names and entry points.
 
 ```bash
-npm create @honovel/honovel@latest my-app
-npm create @honovel/honovel@latest my-api -- --api-only
-npm create @honovel/honovel@latest my-web-app -- --frontend=nuxt
+npm create honovel@latest my-app
+npm create honovel@latest my-api -- --api-only
+npm create honovel@latest my-web-app -- --frontend=nuxt
 ```
 
 The backend always runs on Cloudflare Workers. `--frontend=none` is equivalent to `--api-only`. Without a flag the initializer asks whether to include Nuxt; non-interactive runs default to Nuxt. The old `--template` runtime option is no longer supported.
 
-The equivalent explicit initializer is `npx @honovel/create-honovel@latest my-app`. See [Getting Started](/getting-started) for installation requirements. Run the application commands below inside the generated project directory.
+The equivalent explicit initializer is `npx create-honovel@latest my-app`. See [Getting Started](/getting-started) for installation requirements. Run the application commands below inside the generated project directory.
 
 ## Create a feature
 
@@ -87,7 +87,7 @@ For the common cases, the generated root scripts `npm run build` and `npm run ty
 
 ## Starter tooling
 
-Shared helpers ship in `@honovel/core` and run from your application directory. The generated `package.json` invokes them through the `honovel` binary; there is no generated `scripts/` directory to maintain. Keep using the usual `npm run dev`, `npm run build` and `npm run deploy` entrypoints for the complete starter workflow.
+Shared helpers ship in `honovel` and run from your application directory. The generated `package.json` invokes them through the `honovel` binary; there is no generated `scripts/` directory to maintain. Keep using the usual `npm run dev`, `npm run build` and `npm run deploy` entrypoints for the complete starter workflow.
 
 | CLI command | Purpose |
 | --- | --- |

@@ -1,6 +1,6 @@
 import { Context } from 'hono'
-import { Queue, Scope } from '@honovel/core'
-import { BaseCloudflareQueue } from '@honovel/cloudflare'
+import { Queue, Scope } from 'honovel'
+import { BaseCloudflareQueue } from 'honovel/cloudflare'
 import type { AppEnv } from '../env'
 
 @Scope({ provides: Queue })

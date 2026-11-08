@@ -32,7 +32,7 @@ The frontend is generated into `frontend/.output/public` and copied to `dist/fro
 
 `compile` and `typecheck` generate `CloudflareBindings` with `wrangler types`. Add bindings such as D1, KV, or R2 to `wrangler.jsonc`; `src/env.ts` exposes them as `AppEnv`. Keep local secrets in ignored `.dev.vars`, and use `wrangler secret put` for deployed secrets. Node.js is required for tooling only; the Worker runtime does not need `nodejs_compat` for this starter.
 
-The custom build uses `honovel cloudflare:build` from `@honovel/core`. It skips compilation when called by `wrangler types`, because Wrangler also invokes custom builds while inspecting the entrypoint for type generation; this prevents recursive builds.
+The custom build uses `honovel cloudflare:build` from `honovel`. It skips compilation when called by `wrangler types`, because Wrangler also invokes custom builds while inspecting the entrypoint for type generation; this prevents recursive builds.
 
 Wrangler is pinned to the version tested with this starter. Upgrade that dependency and the compatibility date deliberately when adopting newer Workers features.
 
@@ -73,7 +73,7 @@ Honovel resolves concrete, named-exported classes by constructor. Services are r
 The following example assumes you have added and exported the optional `todos` table described in `src/database/README.md`.
 
 ```ts
-import { BaseUrl, Controller, Get } from '@honovel/core'
+import { BaseUrl, Controller, Get } from 'honovel'
 import { MainDatabase } from '../../../database/main/MainDatabase'
 import { todos } from '../../../database/main/schema'
 
@@ -90,14 +90,14 @@ export class TodoController extends Controller {
 
 Use `@Get`, `@Post`, `@Put`, `@Patch`, and `@Delete` for routes, `@BaseUrl` for a controller prefix, and `@Query`/`@Param` for typed route parameters. `@Middleware` attaches middleware. Use `@Scope('transient')` only for stateless, independently-created helpers; database providers must remain request-scoped. Custom decorators can be built with `createDecorator` and explicit DI dependencies. Validation uses `FormRequest(schema)` or standard schemas and keeps request parsing at the route boundary.
 
-The published Core includes the Honovel TypeScript language-service plugin. The generated `tsconfig.json` points editors at `@honovel/core/typescript-plugin`; restart the TypeScript server after installing dependencies to get diagnostics for missing routes, DI dependencies, and decorator usage. The plugin is editor tooling only—the compiler remains the authoritative build/typecheck step.
+The published Core includes the Honovel TypeScript language-service plugin. The generated `tsconfig.json` points editors at `honovel/typescript-plugin`; restart the TypeScript server after installing dependencies to get diagnostics for missing routes, DI dependencies, and decorator usage. The plugin is editor tooling only—the compiler remains the authoritative build/typecheck step.
 
 Keep `index.ts` as the Worker entrypoint and keep runtime bindings in `AppEnv`. Do not access `globalThis` for request state or cache a request-specific D1/Context object. Use Wrangler secrets for credentials, keep `.dev.vars` local, and commit migrations alongside the database they change.
 
 Copy `.env.example` to `.env` for local Wrangler configuration. `APP_DEBUG=false` is the safe default; set it to `true` locally to include the exception name and stack trace in otherwise hidden HTTP 500 responses. Never enable it in production.
 
-Core is installed as `@honovel/core`; no Core source is copied into this project. The public npm distribution needs no installation login; if using the GitHub mirror, keep its authentication in user npm configuration or CI secrets. The generated `.npmrc` contains only the registry mapping.
+The framework and Cloudflare adapters are installed together as `honovel`; no framework source is copied into this project. Import framework APIs from `honovel` and Cloudflare adapters from `honovel/cloudflare`. Installation uses the public npm registry and requires no login.
 
-Build and runtime helpers are shipped in `@honovel/core` and invoked through the `honovel` CLI. The starter does not copy a `scripts/` directory. `honovel frontend:build` generates the Nuxt frontend; Cloudflare tooling is available as `honovel cloudflare:<command>`.
+Build and runtime helpers are shipped in `honovel` and invoked through the `honovel` CLI. The starter does not copy a `scripts/` directory. `honovel frontend:build` generates the Nuxt frontend; Cloudflare tooling is available as `honovel cloudflare:<command>`.
 
-This project was created with `--frontend=nuxt`. For a new API-only project, use `npm create @honovel/honovel@latest my-api -- --api-only`; its backend remains Cloudflare Workers.
+This project was created with `--frontend=nuxt`. For a new API-only project, use `npm create honovel@latest my-api -- --api-only`; its backend remains Cloudflare Workers.

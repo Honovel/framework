@@ -1,7 +1,7 @@
-import { createHonoApp } from '@honovel/core'
+import { createHonoApp } from 'honovel'
 import type { AppEnv } from './src/env'
 
-export { HonovelCacheDurableObject } from '@honovel/cloudflare'
+export { HonovelCacheDurableObject } from 'honovel/cloudflare'
 
 const app = createHonoApp<AppEnv>()
 export default app

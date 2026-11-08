@@ -1,4 +1,4 @@
-import { Cache, type CacheComparable, type CacheLookup } from '@honovel/core'
+import { Cache, type CacheComparable, type CacheLookup } from '../../cache/Cache.js'
 import { DurableObject } from 'cloudflare:workers'
 
 export interface DurableObjectCacheStub {

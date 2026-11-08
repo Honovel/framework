@@ -1,29 +1,13 @@
 # Framework tests
 
-Run `npm test` from the repository root. `run.mjs` copies the Todo fixture from
-`fixtures/application/`, the framework and the checks into a temporary project,
-links the repository dependencies, and compiles before running the checks.
-The temporary project is deleted even if a check fails. The fixture keeps its
-original import paths because it runs at the root of that isolated project.
+Run `npm run package:build` and `npm test` from the repository root. `test/run.mts` copies the application fixture, framework and checks into an isolated temporary project, links repository dependencies and compiles before running the checks. Generated JavaScript tooling is prepared automatically by root commands.
 
-`npm run compile`, `npm run build`, `npm run typecheck` and `npm run dev` use the
-same isolated fixture. They do not generate application artifacts in this repo.
+The checks run in Node as a test host. The supported application deployment runtime is Cloudflare Workers. `npm run compile`, `build`, `typecheck` and `dev` use the same isolated fixture and leave no application output in the repository.
 
-Run `npm run test:packages` for the separate package integration suite. It packs
-and installs the real packages, creates Cloudflare Nuxt and API-only projects,
-checks compilation and production builds, and exercises Workers requests plus a
-separate internal Node adapter fixture. It needs access to the npm registry for the starters' dependencies; no deployment is performed.
+`npm run test:packages` packs and installs the real `honovel` and `create-honovel` artifacts. It tests the short npm create command against a local registry, creates Nuxt/API-only starters, checks compilation and production builds, and runs requests and events in workerd. It also checks that the main runtime entry point does not load Cloudflare bindings, compiler tooling or Node adapters.
 
-`fixtures/node-adapter/` preserves Node adapter coverage for existing applications.
-It is an internal test fixture and is not included in the project initializer.
+The suite needs npm access for starter dependencies and keeps its cache under `.local-tests/npm-cache` (or `HONOVEL_NPM_CACHE`). Test projects are removed unless `HONOVEL_KEEP_TEST_PROJECTS=1`; nothing is deployed or published.
 
-Release helper checks run separately with `npm run test:release` (also included in
-`npm test`). They use simulated registries and uploads, not live publication.
-Integration tests retain their npm download cache under `.local-tests/npm-cache`
-(or `HONOVEL_NPM_CACHE`) while deleting generated test projects. The Node adapter
-fixture is backend-only; the Cloudflare Nuxt starter owns the frontend build test.
+`npm run test:release` checks simulated npm registry requests and publication, authentication-file cleanup, artifact integrity and preflight failures. It is also included in `npm test`.
 
-CI and releases share `.github/workflows/checks.yml`, running framework and
-integration checks in parallel. On releases, the integration job retains verified
-npm and GitHub tarballs in `HONOVEL_PACKAGE_ARTIFACTS`. Publishing jobs consume
-those artifacts without rebuilding or installing the framework dependencies.
+CI and releases share `.github/workflows/checks.yml`. Release integration checks retain verified npm tarballs under `HONOVEL_PACKAGE_ARTIFACTS`; the publishing job uploads these artifacts without rebuilding packages.

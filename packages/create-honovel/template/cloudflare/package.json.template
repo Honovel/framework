@@ -33,8 +33,7 @@
     "cf-typegen": "honovel cloudflare:typegen"
   },
   "dependencies": {
-    "@honovel/core": "__HONOVEL_VERSION__",
-    "@honovel/cloudflare": "__HONOVEL_VERSION__",
+    "honovel": "__HONOVEL_VERSION__",
     "hono": "^4.13.8",
     "drizzle-orm": "^0.45.3",
     "zod": "^4.6.5"

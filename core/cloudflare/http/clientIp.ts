@@ -1,4 +1,4 @@
-import { createDecorator } from '@honovel/core'
+import { createDecorator } from '../../http/customDecorators.js'
 import type { Context } from 'hono'
 
 type AnyContext = Context<any, any, any>

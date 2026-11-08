@@ -43,22 +43,13 @@ Cloudflare D1 example:
 ```ts
 import type { Context } from 'hono'
 import { drizzle } from 'drizzle-orm/d1'
-import { defineDatabase } from '@honovel/core'
+import { defineDatabase } from 'honovel'
 import type { AppEnv } from '../../env'
 import * as schema from './schema'
 
 export class MainDatabase extends defineDatabase(
   (context: Context<AppEnv>) => drizzle(context.env.DB, { schema }),
 ) {}
-```
-
-Node/PostgreSQL example:
-
-```ts
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-const db = drizzle(pool, { schema })
-
-export class MainDatabase extends defineDatabase(() => db) {}
 ```
 
 ## Inject the database

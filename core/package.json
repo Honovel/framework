@@ -1,23 +1,78 @@
 {
-  "name": "@honovel/core",
+  "name": "honovel",
   "version": "0.1.9",
-  "description": "Compile feature-oriented TypeScript applications to Hono routes",
+  "description": "TypeScript application framework for Hono and Cloudflare Workers",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "sideEffects": false,
   "exports": {
-    ".": { "types": "./index.ts", "import": "./dist/index.js" },
-    "./internal/*": { "types": "./*.ts", "import": "./dist/*.js" },
+    ".": {
+      "types": "./index.ts",
+      "import": "./dist/index.js"
+    },
+    "./internal/*": {
+      "types": "./*.ts",
+      "import": "./dist/*.js"
+    },
     "./typescript-plugin": "./tools/honovel-typescript-plugin/index.cjs",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./cloudflare": {
+      "types": "./cloudflare/index.ts",
+      "import": "./dist/cloudflare/index.js"
+    }
   },
-  "bin": { "honovel": "./cli/honovel.mjs", "honovel-build": "./compiler/honovel-build.mjs" },
-  "files": ["dist", "index.ts", "app.ts", "cache", "database", "di", "dispatch", "http", "lock", "logging", "openapi", "queue", "schedule", "compiler", "cli", "scripts", "tools/honovel-typescript-plugin", "typescript-plugin", "README.md"],
-  "scripts": { "build": "esbuild scripts/build-package.mts --bundle --platform=node --format=esm --packages=external --outfile=scripts/build-package.mjs && node scripts/build-package.mjs", "prepack": "npm run build" },
-  "peerDependencies": { "hono": "^4.13.8", "drizzle-orm": "^0.45.3", "zod": "^4.6.5" },
-  "dependencies": { "typescript": "^6.0.3" },
-  "devDependencies": { "esbuild": "^0.28.1" },
-  "repository": { "type": "git", "url": "git+https://github.com/Honovel/framework.git", "directory": "core" },
-  "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" }
+  "bin": {
+    "honovel": "./cli/honovel.mjs",
+    "honovel-build": "./compiler/honovel-build.mjs"
+  },
+  "files": [
+    "dist",
+    "index.ts",
+    "app.ts",
+    "cloudflare",
+    "cache",
+    "database",
+    "di",
+    "dispatch",
+    "http",
+    "lock",
+    "logging",
+    "openapi",
+    "queue",
+    "schedule",
+    "compiler",
+    "cli",
+    "scripts",
+    "tools/honovel-typescript-plugin",
+    "typescript-plugin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npm run typecheck && esbuild scripts/build-package.mts --bundle --platform=node --format=esm --packages=external --outfile=scripts/build-package.mjs && node scripts/build-package.mjs",
+    "prepack": "npm run build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "hono": "^4.13.8",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "dependencies": {
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Honovel/framework.git",
+    "directory": "core"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
 }

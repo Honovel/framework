@@ -1,120 +1,79 @@
-# Maintainer reference: npmjs and GitHub Packages
+# Maintainer reference: npm releases
 
-Releases publish four packages to public npmjs and mirror them to GitHub Packages:
+Releases publish two public packages to npm:
 
-| Directory | Package |
-| --- | --- |
-| `core/` | `@honovel/core` |
-| `packages/cloudflare/` | `@honovel/cloudflare` |
-| `packages/node/` | `@honovel/node` |
-| `packages/create-honovel/` | `@honovel/create-honovel` |
+| Source directory | Package | Purpose |
+| --- | --- | --- |
+| `core/` | `honovel` | Framework, compiler, CLI, editor plugin and Cloudflare adapters |
+| `packages/create-honovel/` | `create-honovel` | Project initializer for `npm create honovel@latest` |
 
-The root workspace is private and is not published. Package source metadata targets `https://registry.npmjs.org/`. Mirror tarballs have their own `publishConfig.registry` pointing to `https://npm.pkg.github.com/`; the initializer's generated scope mapping follows its selected registry. Merely passing another registry to `npm publish` is insufficient when the tarball still contains a different publish configuration.
+The root workspace is private. Cloudflare adapters are part of `honovel` and exposed through `honovel/cloudflare`; they are not a separate npm dependency. The main runtime entry point does not load `cloudflare:workers`. Node deployment adapters and scoped compatibility packages are not part of releases. Node.js 22 or newer is required for local tooling.
 
-## npmjs setup
+The source repository, releases, Actions workflows and documentation remain on GitHub. Package artifacts are published only to `https://registry.npmjs.org/`.
 
-The publishing account must have access to the `@honovel` scope on npm. Packages use `--access=public`, so consumers do not need authentication to install from npmjs.
+## npm setup
 
-For a first publication, set the repository's `NPM_TOKEN` secret to an npm granular access token authorized to publish these packages, with the required 2FA bypass for non-interactive publishing. This token is optional once trusted publishing is configured. Never commit a token.
+The publishing account must be able to publish both `honovel` and `create-honovel`. For their first publication, configure the repository's `NPM_TOKEN` secret with a granular token authorized for these packages and non-interactive publication. Never commit tokens.
 
-For tokenless releases, configure a trusted publisher on each npm package:
+Once each package exists, configure its trusted publisher:
 
 - GitHub owner: `Honovel`
 - Repository: `framework`
 - Workflow filename: `release.yml`
-- Allow direct `npm publish` from that workflow.
+- Allow direct publishing from the workflow.
 
-The npm release job runs on a GitHub-hosted runner with Node 22, npm 11.6.0 and `id-token: write`. Without `NPM_TOKEN`, npm uses its OIDC identity. Trusted publishing automatically produces provenance for public packages from a public repository. A new package may need its initial publication before its package-level trusted publisher settings can be configured.
-
-## GitHub Packages setup
-
-The mirror job uses the built-in `GITHUB_TOKEN` with `packages: write`; no separate GitHub publishing token is needed for packages associated with the workflow repository. Existing packages must grant the repository Actions access. GitHub's package visibility settings are separate from the npm `--access` flag: check or change visibility in package settings if the mirror should be public.
-
-Installation from GitHub Packages requires authentication even for public packages. This is optional for consumers now that npmjs is the default:
-
-```sh
-npm config set --location=user @honovel:registry https://npm.pkg.github.com/
-npm login --scope=@honovel --auth-type=legacy --registry=https://npm.pkg.github.com
-```
-
-Use a GitHub personal access token (classic) with `read:packages`. To switch back to npmjs, set the scope registry to `https://registry.npmjs.org/`.
+The npm job uses a GitHub-hosted runner, Node 22, npm 11.6.0 and `id-token: write`. `NPM_TOKEN` is an optional bootstrap/fallback; otherwise publication uses npm trusted publishing through OIDC. Both packages must be configured individually.
 
 ## Release workflow
 
-A published GitHub release runs `.github/workflows/release.yml`. The release tag determines all package and peer-dependency versions, with a leading `v` removed. After fixing release tooling, create a new tag on the corrected commit: re-running an old workflow run still uses its original sources.
+A published GitHub release runs `.github/workflows/release.yml`. Its tag determines both package versions, with a leading `v` removed. Use a new tag on the corrected commit after fixing release tooling; rerunning an older workflow still uses that tag's original source.
 
-The workflow calls `.github/workflows/checks.yml`:
+1. Framework checks build/typecheck the package and run framework plus release-helper tests.
+2. Integration checks pack `honovel` and `create-honovel`, test `npm create honovel@latest` against a local registry, install generated Nuxt and API-only applications, and verify production builds and workerd requests/events.
+3. Only after successful checks, the integration job uploads the verified npm tarballs and their integrity manifest as `verified-packages`.
+4. The npm job downloads these artifacts and publishes them without rebuilding packages.
 
-1. Framework checks build/typecheck runtime packages and run framework plus publishing unit tests.
-2. Integration checks run in parallel: pack the current sources, install temporary Node-backend/Nuxt/API-only applications, and test compilation, production builds and runtime requests.
-3. The integration job creates registry-specific npm and GitHub tarballs from the same compiled runtime and uploads `verified-packages` only after all checks pass.
-4. Separate npmjs and GitHub jobs install the tooling dependencies, download those tarballs and publish them without rebuilding the verified packages.
+The integration job never deploys a project or publishes a package. It retains its npm cache across runs and removes generated projects afterward.
 
-The integration npm cache persists between CI runs. No test project is deployed. Temporary apps are intentional end-to-end checks that the published initializer and compiler work together; generated projects are deleted afterward. The old Node adapter fixture is backend-only, so Nuxt is installed and built only for the actual Cloudflare Nuxt starter.
+The release helper checks artifact names, npm registry, version and SHA-512 integrity before uploading. All registry preflights finish before the first upload. `--skip-existing` skips an already-published version only when its integrity matches the verified artifact. A partial npm release can be resumed while the verified artifact is retained; conflicting artifacts require a new version.
 
-The publish helper checks artifact integrity and release version before use. Registry failures stop uploading. On reruns, `--skip-existing` only skips an existing version when its registry integrity exactly matches the prepared tarball; a different or unverifiable artifact requires a new version. Cross-registry publication is not atomic: one registry can succeed while the other fails. Re-run the failed job while the verified artifact is retained (seven days).
-
-## Local checks and publishing
-
-All maintained JavaScript tooling is written in TypeScript: `.mts` for ESM and `.cts` for the CommonJS TypeScript language-service plugin. `npm install` prepares the executable files, and the root commands rebuild them before running. `npm run build:tooling` regenerates the `.mjs`/`.cjs` files and source maps beside their sources; those outputs are ignored by Git. Published packages include the generated Node entry points, so consumers need no TypeScript loader and still use Node.js 22 or newer.
-
-`npm run typecheck:tooling` checks the CLI, compiler, plugin, scripts, documentation helpers and tests. Tooling has its own configuration so its Node types do not leak into application/Worker types. The migrated tooling checks strict nullability and function contracts; implicit parameter types are still allowed for existing compiler internals. Runtime source retains its existing strict configuration.
+## Local checks
 
 ```sh
-npm test                    # framework checks plus fast release-helper tests
-npm run test:release        # simulated publishing only
-npm run test:packages       # real packed starter integration tests
-npm run release:check       # complete local verification
+npm run package:build       # framework + Cloudflare subpath + initializer
+npm run typecheck:tooling   # CLI, compiler, plugin, scripts and tests
+npm test                   # framework and simulated publishing checks
+npm run test:packages      # packed initializer and Workers integration
+npm run release:check      # complete local verification
+npm run package:pack       # pack both packages into dist/packages
 ```
 
-Use `HONOVEL_NPM_CACHE` to choose the integration download cache and `HONOVEL_PACKAGE_ARTIFACTS` to retain verified npm/GitHub tarballs. Other generated files stay temporary.
+The maintained tooling sources use `.mts` for ESM and `.cts` for the CommonJS editor plugin. Installation prepares generated `.mjs`/`.cjs` files, and root commands rebuild them before running. These outputs and their source maps are ignored by Git. Published packages contain executable JavaScript, so consumers need no TypeScript loader.
 
-Publishing entrypoints are `npm run release:npm` and `npm run release:github`. Supply `NODE_AUTH_TOKEN` for manual publishing and `HONOVEL_RELEASE_TAG` for the desired version. CI can publish verified archives with `-- --packages-dir <directory> --skip-existing`. The manifest is rebased to the downloaded artifact path and every tarball is checked against its recorded SHA-512 integrity. A temporary npm configuration references the token by environment variable and is removed after publishing, including on errors. Tokens are never written into package artifacts.
-
-## CI and Pages
-
-`ci.yml` calls the same framework/integration workflow on pull requests and pushes to `main`, plus a documentation build check. `docs.yml` remains the VitePress deployment workflow on every push to `main`. Set **Settings → Pages → Source: GitHub Actions**; do not use the branch-based Jekyll build for this VitePress site.
+Tooling uses a separate TypeScript configuration so Node types do not leak into Worker application types. It checks strict nullability and function contracts while allowing implicit parameter types in existing compiler internals. Runtime source retains its strict configuration.
 
 ## Documentation deployment
 
-For `Honovel/framework`, the default project-site URL is `https://honovel.github.io/framework/`. Enable **Settings → Pages → Build and deployment → Source: GitHub Actions** in the GitHub repository. Subsequent pushes to `main` are published by `docs.yml`, without a Cloudflare token or a separate deployment branch. The workflow uses the Pages metadata to determine the site's base path, including when a custom domain serves it at `/`.
-
-The documentation build supports two environment variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `HONOVEL_DOCS_TARGET=github-pages` | Generate `.html` page links for GitHub Pages, which does not provide the existing clean-URL rewrites. |
-| `HONOVEL_DOCS_BASE=/framework/` | Prefix assets, navigation, favicons and generated agent-documentation URLs with the deployment mount path. |
-
-Check the Pages build locally:
+The public documentation is [honovel.github.io/framework](https://honovel.github.io/framework/). `.github/workflows/docs.yml` publishes it through GitHub Pages, independently of npm releases. Framework CI also verifies the Pages build.
 
 ```sh
 HONOVEL_DOCS_TARGET=github-pages HONOVEL_DOCS_BASE=/framework/ npm run docs:build
-HONOVEL_DOCS_TARGET=github-pages HONOVEL_DOCS_BASE=/framework/ npm run docs:preview
 ```
 
-Both VitePress and the generated `llms.txt`, `llms-full.txt` and `raw/*.md` documents use the same base path. Generated Markdown under `public/` is served as raw assets rather than being rendered as duplicate documentation pages.
+The generated `llms.txt`, `llms-full.txt` and raw Markdown links use the same mount point. Without these variables, the build keeps root-mounted URLs for local development. Optional manual Cloudflare documentation deployment remains available via `npm run docs:deploy`; it does not publish npm packages.
 
-Without these variables, `npm run docs:build` keeps the root-mounted clean-URL build used for local development and the existing Cloudflare site. Manual Cloudflare preview/deployment remains available through `npm run docs:preview:cloudflare` and `npm run docs:deploy`, using `docs/wrangler.jsonc`. The automatic GitHub Pages workflow does not invoke those commands.
-
-## Public consumer quickstart
-
-The public installation instructions follow [Honovel/framework on GitHub](https://github.com/Honovel/framework) and the published npm initializer:
+## Consumer quickstart
 
 ```sh
-npm create @honovel/honovel@latest my-app
+npm create honovel@latest my-app
 cd my-app
 npm run dev
 ```
 
-This resolves the npm initializer `@honovel/create-honovel`. The explicit equivalent is `npx @honovel/create-honovel@latest my-app`. Without a `--template` option the initializer asks whether to include Nuxt; non-interactive runs include Nuxt. The backend is always Cloudflare Workers. To create an API-only project:
+The initializer prompts for Nuxt or API-only; non-interactive runs include Nuxt. To select an API-only project directly:
 
 ```sh
-npm create @honovel/honovel@latest my-api -- --api-only
-cd my-api
-npm run dev
+npm create honovel@latest my-api -- --api-only
 ```
 
-For the public distribution, the initializer installs `@honovel/core` and `@honovel/cloudflare` from the public npm registry by default. The additional GitHub mirror requires authentication and an explicit scope mapping. Both project modes serve `GET /api/health` and include a central `src/database/main` with a provider, an empty schema barrel and a migrations directory. Both export the Worker app directly and Wrangler compiles `.honovel/index.js`. Nuxt projects additionally include frontend source and a Workers Static Assets binding; API-only projects omit all frontend files and dependencies. Both project modes include the full Honovel CLI, the published TypeScript language-service plugin, and shared Core CLI helpers. Application tables and SQL migrations are not pre-generated; add/export a schema and generate/review a migration before applying it. Additional databases remain under `src/database/<name>/`.
-
-References: [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/), [GitHub npm registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry), [Publishing Node.js packages](https://docs.github.com/en/actions/tutorials/publish-packages/publish-nodejs-packages).
+Generated projects install `honovel`, import framework APIs from `honovel` and adapters from `honovel/cloudflare`, and configure the editor plugin as `honovel/typescript-plugin`. Both modes deploy to Cloudflare Workers and include D1 configuration, Durable Object cache/locks, a Queue adapter and Cron Trigger support. Nuxt adds the frontend and Workers Static Assets configuration. No registry login is required.

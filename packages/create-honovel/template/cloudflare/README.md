@@ -21,7 +21,7 @@ npm run build
 
 `build` generates binding types, compiles for production and performs a local Wrangler deployment dry run. It writes the Worker bundle to `dist/worker`; it does not upload anything. Production documentation routes are disabled by default.
 
-Build/dev helpers are provided by `@honovel/core` through the `honovel` CLI. This project has no copied `scripts/` directory. `npm run dev` launches Wrangler directly without a frontend server.
+Build/dev helpers are provided by `honovel` through the `honovel` CLI. This project has no copied `scripts/` directory. `npm run dev` launches Wrangler directly without a frontend server.
 
 ## Runtime services and database
 
@@ -43,4 +43,4 @@ npm run deploy
 
 Edit `wrangler.jsonc`; `.honovel.wrangler.jsonc` and `.honovel/` are generated files. Keep secrets in local environment files or Wrangler secrets. The generated local `.env` enables `APP_DEBUG=true`; disable debug details in production.
 
-Framework documentation: https://honovel-docs.lutze.workers.dev
+Framework documentation: https://honovel.github.io/framework

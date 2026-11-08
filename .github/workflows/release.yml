@@ -1,4 +1,4 @@
-name: Release to npmjs and GitHub Packages
+name: Release to npm
 
 on:
   release:
@@ -42,29 +42,4 @@ jobs:
         env:
           # Optional bootstrap/fallback. Otherwise npm uses trusted publishing (OIDC).
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}
-
-  github:
-    needs: checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          package-manager-cache: false
-      - run: npm install --global npm@11.6.0
-      - run: npm ci
-      - uses: actions/download-artifact@v4
-        with:
-          name: verified-packages
-          path: dist/verified-packages
-      - name: Publish verified GitHub packages
-        run: npm run release:github -- --packages-dir dist/verified-packages/github --skip-existing
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HONOVEL_RELEASE_TAG: ${{ github.event.release.tag_name }}

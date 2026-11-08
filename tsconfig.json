@@ -19,9 +19,7 @@
     "jsxImportSource": "hono/jsx"
   },
   "include": [
-    "core/**/*.ts",
-    "packages/node/**/*.ts",
-    "packages/cloudflare/**/*.ts"
+    "core/**/*.ts"
   ],
   "exclude": [
     "**/dist/**",

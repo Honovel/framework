@@ -77,7 +77,7 @@ fallback error responses:
 
 ```ts
 // root index.ts
-import { setErrorRenderer } from '@honovel/core'
+import { setErrorRenderer } from 'honovel'
 import type { ApiError } from '#src/http/ApiError'
 
 setErrorRenderer<ApiError>(app, renderApiError)

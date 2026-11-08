@@ -1,4 +1,4 @@
-# @honovel/cloudflare
+# Cloudflare adapters
 
 Cloudflare runtime adapters for Honovel.
 
@@ -7,7 +7,7 @@ Cloudflare runtime adapters for Honovel.
 Use `ClientIp` to resolve Cloudflare's trusted `CF-Connecting-IP` header:
 
 ```ts
-import { ClientIp } from '@honovel/cloudflare'
+import { ClientIp } from 'honovel/cloudflare'
 
 @Get('/')
 index(@ClientIp() ip: string) {
@@ -25,8 +25,8 @@ The Cloudflare starter binds `HONOVEL_CACHE` to `HonovelCacheDurableObject`. Eac
 
 ```ts
 import { Context } from 'hono'
-import { Cache, Scope } from '@honovel/core'
-import { BaseDurableObjectCache } from '@honovel/cloudflare'
+import { Cache, Scope } from 'honovel'
+import { BaseDurableObjectCache } from 'honovel/cloudflare'
 import type { AppEnv } from '../env'
 
 @Scope({ provides: Cache })
@@ -39,10 +39,10 @@ export class DurableObjectCache extends BaseDurableObjectCache {
 
 ## Locks
 
-`CacheLock` now lives in `@honovel/core` because it only depends on the runtime-neutral `Cache` contract. Runtime packages therefore do not need their own lock implementation. The starter only selects it for the application:
+`CacheLock` lives in the main `honovel` entry point because it depends only on the `Cache` contract. The Cloudflare adapters share the same core classes. The starter only selects it for the application:
 
 ```ts
-import { CacheLock, Lock, Scope } from '@honovel/core'
+import { CacheLock, Lock, Scope } from 'honovel'
 
 @Scope({ provides: Lock })
 export class AppLock extends CacheLock {}

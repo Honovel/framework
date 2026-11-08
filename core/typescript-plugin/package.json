@@ -1,5 +1,5 @@
 {
-  "name": "@honovel/core-typescript-plugin",
+  "name": "honovel-typescript-plugin-entry",
   "private": true,
   "type": "commonjs",
   "main": "./index.cjs"

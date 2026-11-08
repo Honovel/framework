@@ -93,7 +93,7 @@ Invalid or missing JSON bodies, invalid primitive route/query input and schema f
 Use `@Query()` on a FormRequest to validate the query object instead of the JSON body:
 
 ```ts
-import { FormRequest, Get, Query } from '@honovel/core'
+import { FormRequest, Get, Query } from 'honovel'
 import { z } from 'zod'
 
 export class SearchUsersRequest extends FormRequest(z.object({

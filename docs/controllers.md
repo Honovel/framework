@@ -7,7 +7,7 @@ Controllers group related HTTP endpoints. New applications normally extend the a
 Honovel Core provides `BaseController`, which contains the shared controller helpers and request context support. The generated starter then owns a small application-specific controller:
 
 ```ts
-import { BaseController, BaseUrl } from '@honovel/core'
+import { BaseController, BaseUrl } from 'honovel'
 
 @BaseUrl('/api')
 export abstract class Controller extends BaseController {}
@@ -22,7 +22,7 @@ Core still exports `Controller` for compatibility with existing applications. Ne
 ## Basic controller
 
 ```ts
-import { BaseUrl, Get } from '@honovel/core'
+import { BaseUrl, Get } from 'honovel'
 import { Controller } from '#src/runtime/Controller'
 
 @BaseUrl('/users')

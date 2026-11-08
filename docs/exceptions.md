@@ -76,7 +76,7 @@ Honovel also adds `Cache-Control: no-store`, the request ID header and the secur
 Use `setErrorRenderer()` to replace the JSON error body while keeping Honovel's browser debug page for HTML requests:
 
 ```ts
-import { setErrorRenderer } from '@honovel/core'
+import { setErrorRenderer } from 'honovel'
 
 setErrorRenderer(app, (_context, _error, details) => Response.json({
   error: {
@@ -108,7 +108,7 @@ export interface ApiError {
 Register the renderer in the root `index.ts`, alongside application setup. The minimal example below shows the relevant setup; keep the starter's existing Cloudflare Durable Object exports when adding it to a real project:
 
 ```ts
-import { createHonoApp, requestContext, setErrorRenderer } from '@honovel/core'
+import { createHonoApp, requestContext, setErrorRenderer } from 'honovel'
 import type { ApiError } from '#src/http/ApiError'
 
 const app = createHonoApp()

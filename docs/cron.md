@@ -259,29 +259,6 @@ The application's source `wrangler.jsonc` remains application-owned; Honovel gen
 
 If your product requirement uses a local timezone, account for daylight-saving changes. A schedule such as `hour: 8` means 08:00 UTC on Cloudflare, not automatically 08:00 in the application's local timezone.
 
-## Node.js
-
-An existing Node application using `@honovel/node` starts compiler-discovered schedules with Croner through `startCronJobs()`.
-
-Each running Node process owns its own scheduler. If you run three replicas, the same cron job is triggered by all three replicas unless your application coordinates execution.
-
-Use a distributed `Lock` around work that should execute only once across replicas. This only becomes truly distributed when the Node application uses a shared cache/lock backend instead of the default in-memory cache.
-
-## Error handling on Node
-
-`startCronJobs()` supports an `onError` callback if you customize the Node bootstrap:
-
-```ts
-startCronJobs(app, {
-  bindings,
-  onError(error, cron) {
-    console.error('Cron failed', cron, error)
-  },
-})
-```
-
-Without a custom handler, failures are logged.
-
 ## Cron vs one-off scheduling
 
 Cron is intended for recurring triggers. It does not persist arbitrary future jobs, recover missed one-off executions or act as a durable scheduler.

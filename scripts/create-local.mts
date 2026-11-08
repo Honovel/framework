@@ -66,11 +66,11 @@ try {
 
   console.log(`[Honovel local] Packing current worktree as ${localVersion}...`)
   const records = packPackages(path.join(temporary, 'packages'), localVersion)
-  const initializer = packageRecord(records, '@honovel/create-honovel')
+  const initializer = packageRecord(records, 'create-honovel')
 
   const cliRoot = path.join(temporary, 'cli')
   npm(['install', '--prefix', cliRoot, '--ignore-scripts', '--no-audit', '--no-fund', initializer.tarball])
-  const creator = path.join(cliRoot, 'node_modules/@honovel/create-honovel/bin/create-honovel.mjs')
+  const creator = path.join(cliRoot, 'node_modules/create-honovel/bin/create-honovel.mjs')
 
   execFileSync(process.execPath, [creator, name, `--frontend=${frontend}`, '--no-install'], {
     cwd: localRoot,
@@ -82,8 +82,7 @@ try {
   const packageDirectory = path.join(target, '.honovel-local-packages')
   fs.mkdirSync(packageDirectory, { recursive: true })
 
-  installLocalPackage(metadata, records, '@honovel/core', packageDirectory)
-  installLocalPackage(metadata, records, '@honovel/cloudflare', packageDirectory)
+  installLocalPackage(metadata, records, 'honovel', packageDirectory)
 
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n')
 

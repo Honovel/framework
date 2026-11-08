@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 import { drizzle } from 'drizzle-orm/d1'
-import { defineDatabase } from '@honovel/core'
+import { defineDatabase } from 'honovel'
 import type { AppEnv } from '../../env'
 import * as schema from './schema'
 

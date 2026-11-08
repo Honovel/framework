@@ -4,14 +4,14 @@
 
 Honovel is a TypeScript framework for building Hono applications with controllers, constructor dependency injection, validation and generated OpenAPI documentation. The backend runs on Cloudflare Workers. Choose a Nuxt frontend or a lean API-only project.
 
-[Documentation](https://honovel-docs.lutze.workers.dev) · [GitHub](https://github.com/Honovel/framework)
+[Documentation](https://honovel.github.io/framework) · [GitHub](https://github.com/Honovel/framework)
 
 ## Create a project
 
 Use Node.js 22 or newer and npm 11.6 or newer. The public npmjs packages require no login to install.
 
 ```bash
-npm create @honovel/honovel@latest my-app
+npm create honovel@latest my-app
 cd my-app
 npm run dev
 ```
@@ -19,8 +19,8 @@ npm run dev
 The initializer asks whether to include Nuxt or create an API-only project. To choose explicitly:
 
 ```bash
-npm create @honovel/honovel@latest my-web-app -- --frontend=nuxt
-npm create @honovel/honovel@latest my-api -- --api-only
+npm create honovel@latest my-web-app -- --frontend=nuxt
+npm create honovel@latest my-api -- --api-only
 ```
 
 With Nuxt, open `http://localhost:5173`; the frontend proxies API requests to Wrangler. For API-only projects, use `http://localhost:8788` directly. In both cases, `GET /api/health` is ready to try. Swagger is available at `/swagger` and the OpenAPI document at `/openapi.json` during development.
@@ -57,7 +57,7 @@ export class UserService {
 Create `src/features/users/controllers/UserController.ts`:
 
 ```ts
-import { BaseUrl, Get } from '@honovel/core'
+import { BaseUrl, Get } from 'honovel'
 import { Controller } from '#src/runtime/Controller'
 import { UserService } from '../services/UserService'
 
@@ -83,7 +83,7 @@ Constructor injection needs no `@Injectable()` decorator or manual registration 
 Create `src/features/users/dto/requests/CreateUserRequest.ts`:
 
 ```ts
-import { FormRequest } from '@honovel/core'
+import { FormRequest } from 'honovel'
 import { z } from 'zod'
 
 export class CreateUserRequest extends FormRequest(z.object({
@@ -124,9 +124,9 @@ These check and build the backend plus Nuxt when selected. API-only projects onl
 
 ## Next steps
 
-- [Controllers and routing](docs/controllers.md)
-- [Dependency injection](docs/dependency-injection.md)
-- [Requests and validation](docs/requests.md)
-- [Custom error schemas](docs/exceptions.md#custom-error-schemas)
-- [Cache](docs/cache.md), [locks](docs/locks.md), [events and queues](docs/events-queues.md), [cron jobs](docs/cron.md)
-- [CLI commands](docs/cli.md)
+- [Controllers and routing](https://honovel.github.io/framework/controllers.html)
+- [Dependency injection](https://honovel.github.io/framework/dependency-injection.html)
+- [Requests and validation](https://honovel.github.io/framework/requests.html)
+- [Custom error schemas](https://honovel.github.io/framework/exceptions.html#custom-error-schemas)
+- [Cache](https://honovel.github.io/framework/cache.html), [locks](https://honovel.github.io/framework/locks.html), [events and queues](https://honovel.github.io/framework/events-queues.html), [cron jobs](https://honovel.github.io/framework/cron.html)
+- [CLI commands](https://honovel.github.io/framework/cli.html)

@@ -8,41 +8,33 @@ Use Node.js 22 or newer and npm 11.6 or newer for local tooling. The backend run
 
 ## Package registry
 
-The default distribution is public on npmjs and requires no login for installation. GitHub Packages remains an additional release destination.
-
-If you previously configured the Honovel scope to use GitHub Packages, switch it to npmjs before using this quickstart:
-
-```bash
-npm config set --location=user @honovel:registry https://registry.npmjs.org/
-```
-
-Installing from the optional GitHub Packages mirror still requires GitHub authentication, including for public packages. See the repository's `docs/publishing.md` for maintainer and mirror setup.
+Honovel is published on the public npm registry as `honovel`, with Cloudflare adapters included under `honovel/cloudflare`. The `create-honovel` package provides the initializer. Installation requires no registry login.
 
 ## Create a project
 
 ```bash
-npm create @honovel/honovel@latest my-app
+npm create honovel@latest my-app
 ```
 
 Choose **Nuxt frontend** or **API-only** interactively, or select explicitly:
 
 ```bash
-npm create @honovel/honovel@latest my-web-app -- --frontend=nuxt
-npm create @honovel/honovel@latest my-api -- --api-only
+npm create honovel@latest my-web-app -- --frontend=nuxt
+npm create honovel@latest my-api -- --api-only
 ```
 
 `--frontend=none` is equivalent to `--api-only`. Both `--frontend=value` and `--frontend value` work. Without an explicit option, non-interactive runs include Nuxt. Runtime selection through `--template=node|cloudflare` has been removed: new projects always target Cloudflare Workers.
 
-`npm create @honovel/honovel` resolves the `@honovel/create-honovel` initializer. The equivalent explicit form is:
+`npm create honovel` resolves the `create-honovel` initializer. The equivalent explicit form is:
 
 ```bash
-npx @honovel/create-honovel@latest my-api --api-only
+npx create-honovel@latest my-api --api-only
 ```
 
 Use `--no-install` to scaffold without installing dependencies:
 
 ```bash
-npm create @honovel/honovel@latest my-api -- --api-only --no-install
+npm create honovel@latest my-api -- --api-only --no-install
 ```
 
 Existing directories are never overwritten. The initializer writes `.env.example` with `APP_DEBUG=false` and a local `.env` with `APP_DEBUG=true`; keep the local file out of version control.
@@ -96,7 +88,7 @@ npm run honovel -- make:controller users/User
 ```
 
 ```ts
-import { BaseUrl, Get } from '@honovel/core'
+import { BaseUrl, Get } from 'honovel'
 import { Controller } from '#src/runtime/Controller'
 
 @BaseUrl('/users')
@@ -116,7 +108,7 @@ The generated application-level `Controller` already declares `@BaseUrl('/api')`
 ## Add a validated endpoint
 
 ```ts
-import { FormRequest } from '@honovel/core'
+import { FormRequest } from 'honovel'
 import { z } from 'zod'
 
 export class CreateUserRequest extends FormRequest(z.object({
@@ -148,4 +140,4 @@ npm run build
 npm run honovel -- list
 ```
 
-`typecheck` checks backend TypeScript/Honovel diagnostics and, when selected, Nuxt types. `build` compiles the Worker and generates the static frontend only in Nuxt projects. Shared build and Cloudflare launch helpers come from `@honovel/core`; generated projects do not contain copies in a `scripts/` directory. See [CLI](/cli#starter-tooling) for the underlying commands.
+`typecheck` checks backend TypeScript/Honovel diagnostics and, when selected, Nuxt types. `build` compiles the Worker and generates the static frontend only in Nuxt projects. Shared build and Cloudflare launch helpers come from `honovel`; generated projects do not contain copies in a `scripts/` directory. See [CLI](/cli#starter-tooling) for the underlying commands.

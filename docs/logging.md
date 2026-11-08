@@ -7,7 +7,7 @@ Honovel emits structured JSON logs. Cloudflare Workers Logs indexes top-level fi
 Register the middleware once, before the compiled routes are attached:
 
 ```ts
-import { createHonoApp, requestContext } from '@honovel/core'
+import { createHonoApp, requestContext } from 'honovel'
 
 const app = createHonoApp()
 app.use('*', requestContext())
@@ -42,7 +42,7 @@ Set `log: false` to disable these warnings. Unhandled server errors are logged b
 Inject `Logger` into a service and bind the service name once:
 
 ```ts
-import { Logger } from '@honovel/core'
+import { Logger } from 'honovel'
 
 export class UserService {
   static readonly serviceName = 'UserService'
@@ -86,7 +86,7 @@ Load-bearing fields such as `timestamp`, `level`, `kind`, `service`, `requestId`
 The default exception handler returns JSON for APIs and Honovel's browser debug page for HTML requests. Applications can install their own JSON shape:
 
 ```ts
-import { setErrorRenderer } from '@honovel/core'
+import { setErrorRenderer } from 'honovel'
 
 setErrorRenderer(app, (_context, _error, details) => Response.json({
   error: {
@@ -104,10 +104,10 @@ If the renderer throws, Honovel logs the failure and falls back to the default r
 
 ## Cloudflare client IP
 
-`CF-Connecting-IP` is set by Cloudflare and cannot be spoofed by the client. Use the `ClientIp` decorator from `@honovel/cloudflare`:
+`CF-Connecting-IP` is set by Cloudflare and cannot be spoofed by the client. Use the `ClientIp` decorator from `honovel/cloudflare`:
 
 ```ts
-import { ClientIp } from '@honovel/cloudflare'
+import { ClientIp } from 'honovel/cloudflare'
 
 @Post('/login')
 login(@ClientIp() ip: string) {

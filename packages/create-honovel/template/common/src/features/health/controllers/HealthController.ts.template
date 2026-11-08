@@ -1,4 +1,4 @@
-import { BaseUrl, Get } from '@honovel/core'
+import { BaseUrl, Get } from 'honovel'
 import { Controller } from '#src/runtime/Controller'
 
 @BaseUrl('/health')

@@ -2,12 +2,15 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFile, execFileSync, spawnSync } from 'node:child_process'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
+import { promisify } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 import { build } from 'esbuild'
-import { packPackages, root, registry, githubRegistry } from '../scripts/pack-packages.mjs'
-import { loadPackages } from '../scripts/release-github.mjs'
+import { packPackages, root, registry } from '../scripts/pack-packages.mjs'
+import { loadPackages } from '../scripts/release.mjs'
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'honovel-packages-'))
 const started = performance.now()
@@ -17,33 +20,81 @@ const env = { ...process.env, npm_config_cache: cacheDirectory }
 process.env.npm_config_cache = env.npm_config_cache
 try {
   const coreMetadata = JSON.parse(fs.readFileSync(path.join(root, 'core/package.json'), 'utf8'))
-  const cloudflareMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/cloudflare/package.json'), 'utf8'))
-  const nodeMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/node/package.json'), 'utf8'))
   const initializerMetadata = JSON.parse(fs.readFileSync(path.join(root, 'packages/create-honovel/package.json'), 'utf8'))
   const releaseVersion = process.env.HONOVEL_RELEASE_TAG ?? process.env.GITHUB_REF_NAME ?? '9.9.9'
   const records = packPackages(artifactDirectory ? path.join(artifactDirectory, 'npm') : path.join(temporary, 'tarballs'), releaseVersion)
-  assert.equal(records[0].name, '@honovel/core')
-  assert.equal(records[1].name, '@honovel/cloudflare')
-  assert.equal(records[2].name, '@honovel/node')
-  assert.equal(records[3].name, '@honovel/create-honovel')
+  assert.deepEqual(records.map((record) => record.name), ['honovel', 'create-honovel'])
   assert.equal(records[0].version, releaseVersion.replace(/^v/, ''))
   assert.equal(records[1].version, records[0].version)
-  assert.equal(records[2].version, records[0].version)
-  assert.equal(records[3].version, records[0].version)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'core/package.json'), 'utf8')).version, coreMetadata.version)
-  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/cloudflare/package.json'), 'utf8')).version, cloudflareMetadata.version)
-  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/node/package.json'), 'utf8')).version, nodeMetadata.version)
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'packages/create-honovel/package.json'), 'utf8')).version, initializerMetadata.version)
-  assert.equal(registry, 'https://registry.npmjs.org/')
-  for (const metadata of [coreMetadata, cloudflareMetadata, nodeMetadata, initializerMetadata]) {
+  for (const metadata of [coreMetadata, initializerMetadata]) {
     assert.equal(metadata.publishConfig.registry, registry)
     assert.equal(metadata.repository.url, 'git+https://github.com/Honovel/framework.git')
   }
-  console.log('[Honovel] Checking packed initializer and Node adapter backend fixture...')
+  assert.ok(coreMetadata.exports['./cloudflare'])
+  assert.equal(coreMetadata.exports['./node'], undefined)
+  assert.equal(coreMetadata.dependencies.croner, undefined)
+  assert.ok(!records[0].files.some((file) => /^node\//.test(file.path)))
+  // Exercise npm's actual `honovel` -> `create-honovel` resolution against an
+  // isolated registry serving the packed artifact. Nothing is published.
+  console.log('[Honovel] Checking npm create honovel@latest against a local registry...')
+  const shortInitializer = records[1]
+  const shortMetadata = JSON.parse(execFileSync('tar', ['-xOf', shortInitializer.tarball, 'package/package.json'], { encoding: 'utf8' }))
+  assert.equal(shortMetadata.name, 'create-honovel')
+  assert.equal(shortMetadata.publishConfig.registry, registry)
+  assert.deepEqual(shortMetadata.bin, initializerMetadata.bin)
+  let servedInitializer = false
+  const localRegistry = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', `http://${request.headers.host}`)
+    if (url.pathname === '/create-honovel') {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({
+        name: 'create-honovel',
+        'dist-tags': { latest: shortInitializer.version },
+        versions: {
+          [shortInitializer.version]: {
+            ...shortMetadata,
+            dist: { tarball: `${url.origin}/create-honovel.tgz`, integrity: shortInitializer.integrity },
+          },
+        },
+      }))
+    } else if (url.pathname === '/create-honovel.tgz') {
+      servedInitializer = true
+      response.setHeader('content-type', 'application/octet-stream')
+      fs.createReadStream(shortInitializer.tarball).pipe(response)
+    } else {
+      response.writeHead(404).end('{}')
+    }
+  })
+  localRegistry.listen(0, '127.0.0.1')
+  await once(localRegistry, 'listening')
+  try {
+    const address = localRegistry.address()
+    assert.ok(address && typeof address !== 'string')
+    const { stdout } = await promisify(execFile)(process.platform === 'win32' ? 'npm.cmd' : 'npm', [
+      'create', '--yes', `--registry=http://127.0.0.1:${address.port}`, 'honovel@latest', 'short-command-sample', '--', '--api-only', '--no-install',
+    ], { cwd: temporary, env: { ...env, npm_config_cache: path.join(temporary, 'short-command-cache') }, encoding: 'utf8', timeout: 60_000 })
+    assert.ok(servedInitializer)
+    assert.match(stdout, /Created .*short-command-sample/)
+    const shortProject = path.join(temporary, 'short-command-sample')
+    const shortProjectMetadata = JSON.parse(fs.readFileSync(path.join(shortProject, 'package.json'), 'utf8'))
+    assert.equal(shortProjectMetadata.dependencies['honovel'], records[0].version)
+    assert.ok(!Object.keys(shortProjectMetadata.dependencies).some((name) => name.startsWith('@honovel/')))
+    assert.equal(fs.existsSync(path.join(shortProject, 'frontend')), false)
+    assert.equal(fs.existsSync(path.join(shortProject, 'node_modules')), false)
+    assert.equal(fs.existsSync(path.join(shortProject, '.npmrc')), false)
+  } finally {
+    const closed = once(localRegistry, 'close')
+    localRegistry.close()
+    await closed
+  }
+
+  console.log('[Honovel] Checking packed initializer...')
   const cliRoot = path.join(temporary, 'cli')
   fs.mkdirSync(cliRoot)
-  execFileSync('npm', ['install', '--prefix', cliRoot, '--ignore-scripts', '--no-audit', '--no-fund', records[3].tarball], { env, stdio: 'pipe' })
-  const creator = path.join(cliRoot, 'node_modules/@honovel/create-honovel/bin/create-honovel.mjs')
+  execFileSync('npm', ['install', '--prefix', cliRoot, '--ignore-scripts', '--no-audit', '--no-fund', shortInitializer.tarball], { env, stdio: 'pipe' })
+  const creator = path.join(cliRoot, 'node_modules/create-honovel/bin/create-honovel.mjs')
   for (const options of [['--frontend=unknown'], ['--frontend'], ['--frontend=nuxt', '--api-only'], ['--api-only', '--api-only'], ['--template=node'], ['--template=cloudflare']]) {
     const invalid = spawnSync(process.execPath, [creator, 'invalid-template', ...options, '--no-install'], { cwd: temporary, encoding: 'utf8' })
     assert.notEqual(invalid.status, 0)
@@ -56,230 +107,15 @@ try {
   assert.ok(defaultMetadata.devDependencies.wrangler)
   assert.ok(defaultMetadata.dependencies.nuxt)
   assert.ok(fs.existsSync(path.join(defaultApplication, 'frontend')))
-  assert.ok(!records[3].files.some(({ path: file }) => file.startsWith('template/node/')))
+  assert.ok(!shortInitializer.files.some(({ path: file }) => file.startsWith('template/node/')))
   assert.equal(JSON.parse(fs.readFileSync(path.join(defaultApplication, 'wrangler.jsonc'), 'utf8')).name, 'default-sample')
-  // Existing Node adapter coverage is a test fixture, not a generator template.
-  const nodeFixture = path.join(temporary, 'sample')
-  fs.mkdirSync(nodeFixture)
-  function copyFixture(directory, destination) {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const outputName = entry.name === 'env.example.template' ? '.env.example' : entry.name.replace(/\.template$/, '')
-      const source = path.join(directory, entry.name)
-      const output = path.join(destination, outputName)
-      if (entry.isDirectory()) {
-        fs.mkdirSync(output, { recursive: true })
-        copyFixture(source, output)
-      } else if (source.endsWith('.png')) fs.copyFileSync(source, output)
-      else fs.writeFileSync(output, fs.readFileSync(source, 'utf8')
-        .replaceAll('__PROJECT_NAME__', 'sample').replaceAll('__HONOVEL_VERSION__', records[0].version)
-        .replaceAll('__HONOVEL_REGISTRY__', initializerMetadata.publishConfig.registry))
-    }
-  }
-  copyFixture(path.join(root, 'packages/create-honovel/template/common'), nodeFixture)
-  copyFixture(path.join(root, 'test/fixtures/node-adapter'), nodeFixture)
-  fs.writeFileSync(path.join(nodeFixture, '.env'), 'APP_DEBUG=true\n')
-  const application = path.join(temporary, 'sample')
-  process.env.DATABASE_URL = path.join(application, 'local.db')
-  assert.equal(fs.existsSync(path.join(application, 'core')), false)
-  const duplicate = spawnSync(process.execPath, [creator, 'sample', '--no-install'], { cwd: temporary, encoding: 'utf8' })
-  assert.notEqual(duplicate.status, 0)
-  assert.match(duplicate.stderr, /already exists/)
-  assert.doesNotMatch(fs.readFileSync(path.join(application, '.npmrc'), 'utf8'), /authToken/)
-  const metadataPath = path.join(application, 'package.json')
-  const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'))
-  assert.ok(metadata.dependencies['@hono/node-server'])
-  assert.equal(metadata.devDependencies.esbuild, undefined)
-  assert.equal(metadata.devDependencies.wrangler, undefined)
-  assert.equal(fs.existsSync(path.join(application, 'wrangler.jsonc')), false)
-  assert.match(fs.readFileSync(path.join(application, 'tsconfig.json'), 'utf8'), /@honovel\/core\/typescript-plugin/)
-  assert.equal(metadata.imports['#src/*'], './src/*.ts')
-  assert.equal(metadata.dependencies['@honovel/core'], records[0].version)
-  assert.equal(metadata.dependencies['@honovel/node'], records[2].version)
-  assert.match(fs.readFileSync(path.join(application, '.env.example'), 'utf8'), /APP_DEBUG=false/)
-  assert.match(fs.readFileSync(path.join(application, '.env'), 'utf8'), /APP_DEBUG=true/)
-  assert.match(fs.readFileSync(path.join(application, 'agents.md'), 'utf8'), /https:\/\/honovel-docs\.lutze\.workers\.dev\/llms-full\.txt/)
-  assert.match(fs.readFileSync(path.join(application, 'agents.md'), 'utf8'), /src\/features\/<feature>\//)
-  assert.match(metadata.scripts['dev:backend'], /--env-file-if-exists=\.env/)
-  assert.equal(metadata.scripts.dev, 'npm run dev:backend')
-  assert.ok(fs.existsSync(path.join(application, 'src/database/main/MainDatabase.ts')))
-  assert.equal(fs.existsSync(path.join(application, 'src/database/main/schema/todos.ts')), false)
-  assert.match(fs.readFileSync(path.join(application, 'src/database/main/schema/index.ts'), 'utf8'), /export \{\}/)
-  assert.equal(fs.existsSync(path.join(application, 'scripts')), false)
-  assert.ok(fs.existsSync(path.join(application, 'src/database/main/drizzle.config.ts')))
-  assert.ok(fs.existsSync(path.join(application, 'src/runtime/InMemoryCache.ts')))
-  assert.ok(fs.existsSync(path.join(application, 'src/runtime/CacheLock.ts')))
-  assert.ok(fs.existsSync(path.join(application, 'src/runtime/InMemoryQueue.ts')))
-  assert.ok(fs.existsSync(path.join(application, 'src/runtime/Controller.ts')))
-  assert.match(fs.readFileSync(path.join(application, 'src/runtime/Controller.ts'), 'utf8'), /@BaseUrl\('\/api'\)/)
-  assert.equal(fs.existsSync(path.join(application, 'frontend')), false)
-  assert.equal(metadata.dependencies.nuxt, undefined)
-  assert.match(fs.readFileSync(path.join(application, 'src/runtime/InMemoryQueue.ts'), 'utf8'), /class AppQueue extends InMemoryQueue/)
-  assert.match(fs.readFileSync(path.join(application, 'src/runtime/InMemoryCache.ts'), 'utf8'), /class AppCache extends InMemoryCache/)
-  assert.match(fs.readFileSync(path.join(application, 'src/runtime/CacheLock.ts'), 'utf8'), /class AppLock extends CacheLock/)
-  assert.doesNotMatch(fs.readFileSync(path.join(application, 'src/runtime/InMemoryQueue.ts'), 'utf8'), /class InMemoryQueue extends Queue/)
-  const decoratorsExample = fs.readFileSync(path.join(application, 'src/decorators.ts'), 'utf8')
-  assert.match(decoratorsExample, /export const CurrentUser/)
-  assert.match(decoratorsExample, /export const Header/)
-  assert.match(decoratorsExample, /export const IpRateLimit/)
-  assert.match(decoratorsExample, /cache\.increment\(/)
-  assert.match(decoratorsExample, /TooManyRequestsException/)
-  assert.match(decoratorsExample, /\[UserService, JwtPayload\]/)
-  assert.match(fs.readFileSync(path.join(application, 'src/database/main/MainDatabase.ts'), 'utf8'), /local\.db/)
-  const vscodeSettings = JSON.parse(fs.readFileSync(path.join(application, '.vscode/settings.json'), 'utf8'))
-  assert.equal(vscodeSettings['js/ts.tsdk.path'], './node_modules/typescript/lib')
-  assert.equal(vscodeSettings['js/ts.experimental.useTsgo'], false)
-  assert.equal(fs.existsSync(path.join(application, 'server.mjs')), false)
-  assert.equal(fs.existsSync(path.join(application, 'scripts/bundle.mjs')), false)
-  assert.ok(fs.existsSync(path.join(application, '.vscode/launch.json')))
-  assert.ok(fs.existsSync(path.join(application, '.vscode/tasks.json')))
-  assert.match(fs.readFileSync(path.join(application, '.vscode/launch.json'), 'utf8'), /127\.0\.0\.1:9229/)
-  assert.match(fs.readFileSync(path.join(application, 'package.json'), 'utf8'), /dev:build/)
-  assert.match(metadata.scripts['dev:backend'], /nodemon/)
-  assert.match(metadata.scripts['dev:backend'], /--watch src/)
-  assert.match(metadata.scripts['dev:backend'], /--watch index\.ts/)
-  assert.match(metadata.scripts['dev:backend'], /--inspect=127\.0\.0\.1:9229/)
-  assert.equal(metadata.devDependencies.nodemon, '^3.1.10')
-  assert.match(fs.readFileSync(path.join(application, 'src/database/main/MainDatabase.ts'), 'utf8'), /\.\/schema\/index\.js/)
-  assert.ok(fs.existsSync(path.join(application, 'src/runtime/InMemoryCache.ts')))
-  assert.match(fs.readFileSync(path.join(application, 'index.ts'), 'utf8'), /startCronJobs\(app, \{ bindings \}\)/)
-  metadata.dependencies['@honovel/core'] = records[0].tarball
-  metadata.dependencies['@honovel/node'] = records[2].tarball
-  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2))
-  execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: application, env, stdio: 'pipe' })
-  fs.writeFileSync(path.join(application, 'src/features/health/controllers/HealthController.ts'), `
-import { BaseUrl, Get } from '@honovel/core'
-import { Controller } from '#src/runtime/Controller'
-import { IpRateLimit } from '#src/decorators'
-
-@BaseUrl('/health')
-export class HealthController extends Controller {
-  @Get('/')
-  @IpRateLimit(200)
-  show() { return { status: 'ok' } }
-}
-`)
-  execFileSync('npm', ['run', 'dev:build'], { cwd: application, env, stdio: 'pipe' })
-  assert.ok(fs.existsSync(path.join(application, '.honovel/index.js')))
-  assert.ok(fs.existsSync(path.join(application, '.honovel/index.js.map')))
-  assert.match(
-    fs.readFileSync(path.join(application, '.honovel/src/features/health/controllers/HealthController.js'), 'utf8'),
-    /from ["']\.\.\/\.\.\/\.\.\/decorators\.js["']/,
-  )
-  const directNodeApp = (await import(pathToFileURL(path.join(application, '.honovel/index.js')).href)).default
-  assert.equal((await directNodeApp.request('/api/health')).status, 200)
-  const generatedOpenApi = JSON.parse(fs.readFileSync(path.join(application, '.honovel/openapi.json'), 'utf8'))
-  assert.equal(generatedOpenApi.info.title, metadata.name)
-  assert.equal(generatedOpenApi.info.version, metadata.version)
-  const core = path.join(application, 'node_modules/@honovel/core')
-  // TypeScript's language-service plugin loader looks for a physical package
-  // directory and does not resolve the package exports map here.
-  assert.ok(fs.existsSync(path.join(core, 'typescript-plugin/package.json')))
-  assert.ok(fs.existsSync(path.join(core, 'typescript-plugin/index.cjs')))
-  const run = (...args) => execFileSync(process.execPath, [path.join(core, 'cli/honovel.mjs'), ...args], { cwd: application, stdio: 'pipe' })
-  run('make:feature', 'users')
-  assert.equal(fs.existsSync(path.join(application, 'src/features/users/dto/requests')), true)
-  assert.equal(fs.existsSync(path.join(application, 'src/features/users/dto/responses')), true)
-  fs.mkdirSync(path.join(application, 'src/database/main'), { recursive: true })
-  fs.writeFileSync(path.join(application, 'src/database/main/MainDatabase.ts'), `
-import { defineDatabase } from '@honovel/core'
-export class MainDatabase extends defineDatabase(() => ({ value: 'database-ok' })) {}
-`)
-  fs.mkdirSync(path.join(application, 'src/events'), { recursive: true })
-  fs.writeFileSync(path.join(application, 'src/events/BookingConfirmed.ts'), `
-export class BookingConfirmed {
-  constructor(public readonly id: number) {}
-}
-`)
-  fs.writeFileSync(path.join(application, 'src/events/BookingConfirmedListener.ts'), `
-import { QueuedListener } from '@honovel/core'
-import { BookingConfirmed } from './BookingConfirmed'
-export const handledBookings: number[] = []
-export class BookingConfirmedListener extends QueuedListener<BookingConfirmed> {
-  async handle(event: BookingConfirmed) { handledBookings.push(event.id) }
-}
-`)
-  fs.writeFileSync(path.join(application, 'src/features/health/controllers/HealthController.ts'), `
-import { BaseUrl, Controller, Get, createDecorator, BasicAuth, Binding, Dispatcher } from '@honovel/core'
-import { MainDatabase } from '../../../database/main/MainDatabase'
-import { BookingConfirmed } from '../../../events/BookingConfirmed'
-import { handledBookings } from '../../../events/BookingConfirmedListener'
-export const DatabaseValue = createDecorator([MainDatabase], (_context, db) => db.client.value)
-@BaseUrl('/health')
-export class HealthController extends Controller {
-  constructor(private readonly dispatcher: Dispatcher) { super() }
-  @Get('/')
-  show(@DatabaseValue() value: string) { return { status: 'ok', value } }
-  @Get('/dispatch')
-  async dispatch() {
-    await this.dispatcher.dispatch(new BookingConfirmed(7))
-    await new Promise((resolve) => setTimeout(resolve, 10))
-    return { handled: [...handledBookings] }
-  }
-  @BasicAuth({ username: 'user', password: Binding('PASSWORD') })
-  @Get('/protected')
-  protected() { return { ok: true } }
-}
-`)
-  run('compile')
-  const output = fs.readFileSync(path.join(application, '.honovel/app.js'), 'utf8')
-  assert.match(output, /@honovel\/core\/internal\/http\/routeRuntime/)
-  assert.doesNotMatch(output, /\.\/core\//)
-  assert.match(output, /createListenerRegistry/)
-  assert.match(output, /queued: true/)
-  assert.match(output, /app\.queue = async/)
-  assert.match(output, /export async function consumeQueueMessage/)
-  assert.match(output, /await consumeQueueMessage\(message\.body, env, executionCtx\)/)
-  const generatedType = output.match(/type: "([^"]+)", payload: [^,]+\.BookingConfirmed, listener:/)?.[1]
-  assert.ok(generatedType)
-  const generatedAppUrl = new URL(pathToFileURL(path.join(application, '.honovel/app.js')).href)
-  generatedAppUrl.searchParams.set('compiled', String(Date.now()))
-  const generatedAppModule = await import(generatedAppUrl.href)
-  const generatedListenerModule = await import(pathToFileURL(path.join(application, '.honovel/src/events/BookingConfirmedListener.js')).href)
-  await generatedAppModule.consumeQueueMessage(
-    { type: generatedType, payload: { id: 8 } },
-    { APP_DEBUG: 'false' },
-  )
-  assert.deepEqual(generatedListenerModule.handledBookings, [8])
-  assert.doesNotMatch(fs.readFileSync(path.join(application, '.honovel/src/features/health/controllers/HealthController.js'), 'utf8'), /__decorate/)
-  const require = createRequire(path.join(application, 'package.json'))
-  const plugin = require('@honovel/core/typescript-plugin')
-  assert.equal(typeof plugin.collectHonovelDiagnostics, 'function')
-  async function loadApp(name) {
-    const outfile = path.join(application, name)
-    await build({ entryPoints: [path.join(application, '.honovel/index.js')], outfile,
-      bundle: true, format: 'esm', platform: 'node', packages: 'external', logLevel: 'silent' })
-    return (await import(pathToFileURL(outfile).href)).default
-  }
-  const development = await loadApp('development.mjs')
-  const response = await development.request('/health')
-  assert.equal(response.status, 200)
-  assert.deepEqual(await response.json(), { status: 'ok', value: 'database-ok' })
-  const dispatched = await development.request('/health/dispatch')
-  assert.equal(dispatched.status, 200)
-  assert.deepEqual(await dispatched.json(), { handled: [7] })
-  assert.equal((await development.request('/openapi.json')).status, 200)
-  assert.equal((await development.request('/health/protected', undefined, { PASSWORD: 'secret' })).status, 401)
-  assert.equal((await development.request('/health/protected', { headers: { Authorization: 'Basic ' + Buffer.from('user:secret').toString('base64') } }, { PASSWORD: 'secret' })).status, 200)
-  execFileSync('npm', ['run', 'build'], { cwd: application, env, stdio: 'pipe' })
-  const production = await loadApp('production.mjs')
-  assert.equal((await production.request('/health')).status, 200)
-  assert.equal((await production.request('/openapi.json')).status, 404)
-  // Resolve a runtime-only bundle and ensure compiler/Node tooling is not reachable.
-  const runtime = await build({ entryPoints: [path.join(core, 'dist/index.js')], bundle: true,
-    write: false, metafile: true, platform: 'browser', format: 'esm', logLevel: 'silent' })
-  assert.ok(!Object.keys(runtime.metafile.inputs).some((file) => /typescript\/lib|drizzle-kit|honovel-build/.test(file)))
-  fs.writeFileSync(path.join(application, 'src/Invalid.ts'), `import { MainDatabase } from './database/main/MainDatabase'
-export class Invalid { constructor(readonly db: MainDatabase) {} query() { return this.db.client.missing } }`)
-  assert.throws(() => run('typecheck'))
-
   console.log('[Honovel] Checking Cloudflare Nuxt starter: install, build and workerd runtime...')
   execFileSync(process.execPath, [creator, 'worker_sample', '--frontend', 'nuxt', '--no-install'], { cwd: temporary, stdio: 'pipe' })
   const workerRoot = path.join(temporary, 'worker_sample')
   const workerMetadataPath = path.join(workerRoot, 'package.json')
   const workerMetadata = JSON.parse(fs.readFileSync(workerMetadataPath, 'utf8'))
-  assert.equal(workerMetadata.dependencies['@honovel/core'], records[0].version)
-  assert.equal(workerMetadata.dependencies['@honovel/cloudflare'], records[1].version)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'agents.md'), 'utf8'), /https:\/\/honovel-docs\.lutze\.workers\.dev\/llms\.txt/)
+  assert.equal(workerMetadata.dependencies['honovel'], records[0].version)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'agents.md'), 'utf8'), /https:\/\/honovel\.github\.io\/framework\/llms\.txt/)
   assert.match(fs.readFileSync(path.join(workerRoot, '.env.example'), 'utf8'), /APP_DEBUG=false/)
   assert.match(fs.readFileSync(path.join(workerRoot, '.env'), 'utf8'), /APP_DEBUG=true/)
   assert.match(fs.readFileSync(path.join(workerRoot, 'src/env.ts'), 'utf8'), /APP_DEBUG\?: string/)
@@ -288,13 +124,12 @@ export class Invalid { constructor(readonly db: MainDatabase) {} query() { retur
   assert.equal(fs.existsSync(path.join(workerRoot, 'server.mjs')), false)
   assert.equal(fs.existsSync(path.join(workerRoot, 'scripts/bundle.mjs')), false)
   assert.ok(fs.existsSync(path.join(workerRoot, 'src/database/main/drizzle.config.ts')))
-  assert.match(fs.readFileSync(path.join(workerRoot, 'tsconfig.json'), 'utf8'), /@honovel\/core\/typescript-plugin/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'tsconfig.json'), 'utf8'), /honovel\/typescript-plugin/)
   assert.ok(fs.existsSync(path.join(workerRoot, 'src/database/main/MainDatabase.ts')))
   assert.ok(fs.existsSync(path.join(workerRoot, 'src/database/main/migrations/.gitkeep')))
   assert.equal(fs.existsSync(path.join(workerRoot, 'scripts')), false)
   assert.equal(fs.existsSync(path.join(workerRoot, 'src/database/main/schema/todos.ts')), false)
-  workerMetadata.dependencies['@honovel/core'] = records[0].tarball
-  workerMetadata.dependencies['@honovel/cloudflare'] = records[1].tarball
+  workerMetadata.dependencies['honovel'] = records[0].tarball
   fs.writeFileSync(workerMetadataPath, JSON.stringify(workerMetadata, null, 2))
   const workerConfig = JSON.parse(fs.readFileSync(path.join(workerRoot, 'wrangler.jsonc'), 'utf8'))
   assert.equal(workerConfig.name, 'worker-sample')
@@ -340,20 +175,37 @@ export class Invalid { constructor(readonly db: MainDatabase) {} query() { retur
   workerConfig.vars = { MESSAGE: 'worker-ok' }
   fs.writeFileSync(path.join(workerRoot, 'wrangler.jsonc'), JSON.stringify(workerConfig, null, 2))
   fs.writeFileSync(path.join(workerRoot, 'src/features/health/controllers/HealthController.ts'), `
-import { BaseUrl, Get } from '@honovel/core'
+import { BaseUrl, Get, Cache, Queue, createDecorator, BasicAuth, Binding, defineDatabase } from 'honovel'
+import { BaseDurableObjectCache, BaseCloudflareQueue, ClientIp } from 'honovel/cloudflare'
 import { Context } from 'hono'
 import { Controller } from '#src/runtime/Controller'
 import type { AppEnv } from '../../../env'
+export class ProbeDatabase extends defineDatabase(() => ({ value: 'database-ok' })) {}
+export const DatabaseValue = createDecorator([ProbeDatabase], (_context, database) => database.client.value)
 @BaseUrl('/health')
 export class HealthController extends Controller {
   constructor(private readonly honoContext: Context<AppEnv>) { super() }
   @Get('/')
   show() { return { status: 'ok', message: this.honoContext.env.MESSAGE } }
+  @Get('/identity')
+  identity() {
+    return {
+      cache: BaseDurableObjectCache.prototype instanceof Cache,
+      queue: BaseCloudflareQueue.prototype instanceof Queue,
+    }
+  }
+  @Get('/ip')
+  ip(@ClientIp({ trustForwardedFor: true }) address: string) { return { address } }
+  @Get('/database')
+  database(@DatabaseValue() value: string) { return { value } }
+  @BasicAuth({ username: 'user', password: Binding('MESSAGE') })
+  @Get('/protected')
+  protected() { return { ok: true } }
 }
 `)
   fs.mkdirSync(path.join(workerRoot, 'src/cron'), { recursive: true })
   fs.writeFileSync(path.join(workerRoot, 'src/cron/CleanupCron.ts'), `
-import { Cron, CronJob } from '@honovel/core'
+import { Cron, CronJob } from 'honovel'
 import { Context } from 'hono'
 import type { AppEnv } from '../env'
 @Cron({ minute: '*/5', weekday: 'MON-FRI' })
@@ -366,21 +218,34 @@ export class CleanupCron extends CronJob {
 `)
   const workerEnv = { ...env, WRANGLER_SEND_METRICS: 'false', WRANGLER_LOG_PATH: path.join(temporary, 'wrangler-logs'), CI: 'true' }
   execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: workerRoot, env: workerEnv, stdio: 'pipe' })
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /typegen\.mjs/)
+  const installedCore = path.join(workerRoot, 'node_modules/honovel')
+  const installedRequire = createRequire(path.join(workerRoot, 'package.json'))
+  assert.equal(typeof installedRequire('honovel/typescript-plugin').collectHonovelDiagnostics, 'function')
+  assert.ok(fs.existsSync(path.join(installedCore, 'typescript-plugin/index.cjs')))
+  assert.equal(installedRequire(path.join(installedCore, 'typescript-plugin/index.cjs')), installedRequire('honovel/typescript-plugin'))
+  assert.throws(() => installedRequire.resolve('honovel/node'), /not defined by "exports"/)
+  const runtime = await build({ entryPoints: [path.join(installedCore, 'dist/index.js')], bundle: true,
+    write: false, metafile: true, platform: 'browser', format: 'esm', logLevel: 'silent' })
+  assert.ok(!Object.keys(runtime.metafile.inputs).some((file) => /typescript\/lib|drizzle-kit|honovel-build|\/cloudflare\/|croner/.test(file)))
+  assert.ok(!runtime.outputFiles.some((file) => file.text.includes('cloudflare:workers')))
+  // Exercise generator paths from the installed package, without copied helpers.
+  execFileSync(process.execPath, [path.join(installedCore, 'cli/honovel.mjs'), 'make:feature', 'users'], { cwd: workerRoot, stdio: 'pipe' })
+  assert.ok(fs.existsSync(path.join(workerRoot, 'src/features/users/dto/requests')))
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /typegen\.mjs/)
   assert.match(workerMetadata.scripts.build, /npm run cf-typegen/)
   assert.match(workerMetadata.scripts.deploy, /npm run cf-typegen/)
   assert.match(workerMetadata.scripts.build, /cloudflare:deploy/)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/compile.mjs'), 'utf8'), /HONOVEL_TYPEGEN/)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/typegen.mjs'), 'utf8'), /HONOVEL_TYPEGEN/)
-  assert.ok(fs.existsSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/wrangler-build.mjs')))
-  assert.doesNotMatch(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/wrangler-build.mjs'), 'utf8'), /bin\/wrangler\.js|typegen\.mjs/)
-  assert.ok(fs.existsSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev.mjs')))
-  assert.ok(fs.existsSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev-backend.mjs')))
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev.mjs'), 'utf8'), /HONOVEL_BACKEND_DEV_URL/)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /assetsDirectory/)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev.mjs'), 'utf8'), /probePort\(8788\)/)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /--inspector-port["'], ["']0["']/)
-  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/@honovel/core/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /--inspector-port["'], ["']9229["']/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/compile.mjs'), 'utf8'), /HONOVEL_TYPEGEN/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/typegen.mjs'), 'utf8'), /HONOVEL_TYPEGEN/)
+  assert.ok(fs.existsSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/wrangler-build.mjs')))
+  assert.doesNotMatch(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/wrangler-build.mjs'), 'utf8'), /bin\/wrangler\.js|typegen\.mjs/)
+  assert.ok(fs.existsSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev.mjs')))
+  assert.ok(fs.existsSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev-backend.mjs')))
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev.mjs'), 'utf8'), /HONOVEL_BACKEND_DEV_URL/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /assetsDirectory/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev.mjs'), 'utf8'), /probePort\(8788\)/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /--inspector-port["'], ["']0["']/)
+  assert.match(fs.readFileSync(path.join(workerRoot, 'node_modules/honovel/cli/project/cloudflare/dev-backend.mjs'), 'utf8'), /--inspector-port["'], ["']9229["']/)
 
   assert.throws(() => execFileSync('npm', ['run', 'deploy'], {
     cwd: workerRoot, env: workerEnv, stdio: 'pipe', encoding: 'utf8',
@@ -404,6 +269,8 @@ export class CleanupCron extends CronJob {
   assert.equal(fs.statSync(generatedConfigPath).mtimeMs, generatedConfigMtime)
   assert.equal(fs.statSync(redirectConfigPath).mtimeMs, redirectConfigMtime)
   const workerAppOutput = fs.readFileSync(path.join(workerRoot, '.honovel/app.js'), 'utf8')
+  assert.match(workerAppOutput, /honovel\/internal\/http\/routeRuntime/)
+  assert.doesNotMatch(workerAppOutput, /\.\/core\//)
   // The starter configures a queue consumer even without any queued listeners.
   assert.match(workerAppOutput, /app\.queue = async/)
   assert.match(workerAppOutput, /export async function runCronJob/)
@@ -434,6 +301,18 @@ export class CleanupCron extends CronJob {
     const health = await worker.dispatchFetch('http://localhost/api/health')
     assert.equal(health.status, 200)
     assert.deepEqual(await health.json(), { status: 'ok', message: 'worker-ok' })
+    const identity = await worker.dispatchFetch('http://localhost/api/health/identity')
+    assert.deepEqual(await identity.json(), { cache: true, queue: true })
+    const ip = await worker.dispatchFetch('http://localhost/api/health/ip', { headers: { 'X-Forwarded-For': '203.0.113.42' } })
+    // The local Workers runtime supplies CF-Connecting-IP itself. It must take
+    // precedence over the request's forwarded header.
+    assert.deepEqual(await ip.json(), { address: '127.0.0.1' })
+    const database = await worker.dispatchFetch('http://localhost/api/health/database')
+    assert.deepEqual(await database.json(), { value: 'database-ok' })
+    assert.equal((await worker.dispatchFetch('http://localhost/api/health/protected')).status, 401)
+    assert.equal((await worker.dispatchFetch('http://localhost/api/health/protected', {
+      headers: { Authorization: 'Basic ' + Buffer.from('user:worker-ok').toString('base64') },
+    })).status, 200)
     const workerService = await worker.getWorker()
     const emptyQueueBatch = await workerService.queue(workerConfig.name, [])
     assert.equal(emptyQueueBatch.outcome, 'ok')
@@ -467,11 +346,11 @@ export class CleanupCron extends CronJob {
   assert.equal(apiConfig.d1_databases[0].binding, 'DB')
   assert.equal(apiConfig.queues.producers[0].binding, 'HONOVEL_QUEUE')
   assert.equal(apiConfig.durable_objects.bindings[0].name, 'HONOVEL_CACHE')
-  apiMetadata.dependencies['@honovel/core'] = records[0].tarball
-  apiMetadata.dependencies['@honovel/cloudflare'] = records[1].tarball
+  apiMetadata.dependencies['honovel'] = records[0].tarball
   fs.writeFileSync(apiMetadataPath, JSON.stringify(apiMetadata, null, 2))
   execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: apiRoot, env: workerEnv, stdio: 'pipe' })
   assert.equal(fs.existsSync(path.join(apiRoot, 'node_modules/nuxt')), false)
+  assert.equal(fs.existsSync(path.join(apiRoot, 'node_modules/croner')), false)
   execFileSync('npm', ['run', 'compile'], { cwd: apiRoot, env: workerEnv, stdio: 'pipe' })
   assert.equal(JSON.parse(fs.readFileSync(path.join(apiRoot, '.honovel.wrangler.jsonc'), 'utf8')).assets, undefined)
   execFileSync('npm', ['run', 'typecheck'], { cwd: apiRoot, env: workerEnv, stdio: 'pipe' })
@@ -495,20 +374,9 @@ export class CleanupCron extends CronJob {
   } finally {
     await apiWorker.dispose()
   }
-  // Both registry variants use the same compiled runtime. Do not rebuild after
-  // testing; publish jobs receive these verified tarballs as one artifact.
-  const githubDirectory = artifactDirectory ? path.join(artifactDirectory, 'github') : path.join(temporary, 'github-tarballs')
-  const githubRecords = packPackages(githubDirectory, releaseVersion, { targetRegistry: githubRegistry, prebuilt: true })
-  const loaded = loadPackages(githubDirectory, githubRegistry)
-  assert.deepEqual(loaded.map((record) => record.name), records.map((record) => record.name))
-  for (const record of githubRecords) {
-    const metadata = JSON.parse(execFileSync('tar', ['-xOf', record.tarball, 'package/package.json'], { encoding: 'utf8' }))
-    assert.equal(metadata.publishConfig.registry, githubRegistry)
-    assert.equal(metadata.version, records[0].version)
-  }
   const npmDirectory = path.dirname(records[0].tarball)
-  assert.equal(loadPackages(npmDirectory, registry).length, 4)
-  console.log(`[Honovel] Packed npm/GitHub artifacts, Node adapter, Nuxt and API-only checks passed in ${((performance.now() - started) / 1000).toFixed(1)}s.`)
+  assert.deepEqual(loadPackages(npmDirectory).map((record) => record.name), ['honovel', 'create-honovel'])
+  console.log(`[Honovel] Packed npm artifacts, Nuxt and API-only checks passed in ${((performance.now() - started) / 1000).toFixed(1)}s.`)
 } catch (error) {
   if (error && typeof error === 'object' && 'stdout' in error && error.stdout) process.stderr.write(error.stdout.toString().slice(-8000))
   if (error && typeof error === 'object' && 'stderr' in error && error.stderr) process.stderr.write(error.stderr.toString().slice(-8000))

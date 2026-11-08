@@ -58,14 +58,14 @@ export default createHonoApp()
     exports: { '.': { types: './index.ts', import: './index.js' } },
   }))
   fs.writeFileSync(path.join(externalPackage, 'index.ts'), `
-import { createDecorator } from '@honovel/core'
+import { createDecorator } from 'honovel'
 
 export const ExternalHeader = createDecorator((context) =>
   context.req.header('x-external') ?? 'missing'
 )
 `)
   fs.writeFileSync(path.join(externalPackage, 'index.js'), `
-import { createDecorator } from '@honovel/core'
+import { createDecorator } from 'honovel'
 
 export const ExternalHeader = createDecorator((context) =>
   context.req.header('x-external') ?? 'missing'

@@ -7,6 +7,6 @@
     "skipLibCheck": true,
     "experimentalDecorators": true,
     "lib": ["ESNext", "DOM"],
-    "plugins": [{ "name": "@honovel/core/typescript-plugin" }]
+    "plugins": [{ "name": "honovel/typescript-plugin" }]
   }
 }

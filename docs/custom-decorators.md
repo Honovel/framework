@@ -19,10 +19,10 @@ index(@Header('X-Request-ID') requestId?: string) {
 
 ## Client IP
 
-`@honovel/cloudflare` exports a `ClientIp` decorator backed by Cloudflare's trusted `CF-Connecting-IP` header:
+`honovel/cloudflare` exports a `ClientIp` decorator backed by Cloudflare's trusted `CF-Connecting-IP` header:
 
 ```ts
-import { ClientIp } from '@honovel/cloudflare'
+import { ClientIp } from 'honovel/cloudflare'
 
 @Get('/')
 index(@ClientIp() ip: string) {

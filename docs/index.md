@@ -34,21 +34,21 @@ A Honovel application can use controllers and typed route parameters, FormReques
 Start a new application with:
 
 ```bash
-npm create @honovel/honovel@latest my-app
+npm create honovel@latest my-app
 ```
 
-The installer creates a Cloudflare Workers backend and lets you choose a Nuxt frontend or API-only setup. It uses `@honovel/create-honovel` from the public npm registry. The source repository is [Honovel/framework on GitHub](https://github.com/Honovel/framework); you do not need to clone it. See [package registry setup](/getting-started#package-registry) if your npm scope previously pointed at the GitHub Packages mirror.
+The installer creates a Cloudflare Workers backend and lets you choose a Nuxt frontend or API-only setup. It uses `create-honovel` from the public npm registry. The source repository is [Honovel/framework on GitHub](https://github.com/Honovel/framework); you do not need to clone it. See [Getting Started](/getting-started) for setup and requirements.
 
 With Nuxt:
 
 ```bash
-npm create @honovel/honovel@latest my-app -- --frontend=nuxt
+npm create honovel@latest my-app -- --frontend=nuxt
 ```
 
 API-only:
 
 ```bash
-npm create @honovel/honovel@latest my-app -- --api-only
+npm create honovel@latest my-app -- --api-only
 ```
 
 Continue with [Getting Started](/getting-started).

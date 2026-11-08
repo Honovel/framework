@@ -1,5 +1,0 @@
-import { Queue, Scope } from '@honovel/core'
-import { InMemoryQueue } from '@honovel/node'
-
-@Scope({ provides: Queue })
-export class AppQueue extends InMemoryQueue {}

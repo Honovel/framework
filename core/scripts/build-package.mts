@@ -9,11 +9,14 @@ await buildTooling(root, ['cli', 'compiler', 'scripts', 'tools', 'typescript-plu
 // This directory is generated exclusively by this build; exclude stale chunks from releases.
 fs.rmSync(path.join(root, 'dist'), { recursive: true, force: true })
 const entryPoints = ['index.ts', 'app.ts']
-for (const directory of ['cache', 'database', 'di', 'dispatch', 'http', 'lock', 'logging', 'openapi', 'queue', 'schedule']) {
-  for (const file of fs.readdirSync(path.join(root, directory))) {
-    if (file.endsWith('.ts')) entryPoints.push(`${directory}/${file}`)
+function collectEntries(directory: string): void {
+  for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
+    const file = `${directory}/${entry.name}`
+    if (entry.isDirectory()) collectEntries(file)
+    else if (file.endsWith('.ts') && !file.endsWith('.d.ts')) entryPoints.push(file)
   }
 }
+for (const directory of ['cloudflare', 'cache', 'database', 'di', 'dispatch', 'http', 'lock', 'logging', 'openapi', 'queue', 'schedule']) collectEntries(directory)
 await build({
   absWorkingDir: root,
   entryPoints,

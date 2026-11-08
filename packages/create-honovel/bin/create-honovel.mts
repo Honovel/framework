@@ -7,12 +7,11 @@ import readline from 'node:readline/promises'
 
 const packageRoot = fileURLToPath(new URL('../', import.meta.url))
 const metadata = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'))
-const registry = metadata.publishConfig.registry
 
 async function main() {
   const args = process.argv.slice(2)
   if (!args.length || args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: npm create @honovel/honovel@latest <project-name> [--frontend=nuxt|none] [--api-only] [--no-install]\nThe backend is always Cloudflare Workers. If no frontend option is given, the installer asks whether to include Nuxt (the non-interactive default).')
+    console.log('Usage: npm create honovel@latest <project-name> [--frontend=nuxt|none] [--api-only] [--no-install]\nThe backend is always Cloudflare Workers. If no frontend option is given, the installer asks whether to include Nuxt (the non-interactive default).')
     return
   }
   const [name, ...options] = args
@@ -58,7 +57,6 @@ async function main() {
           .replaceAll('__PROJECT_NAME__', name)
           .replaceAll('__WORKER_NAME__', name.replaceAll('_', '-'))
           .replaceAll('__HONOVEL_VERSION__', metadata.version)
-          .replaceAll('__HONOVEL_REGISTRY__', registry)
         if (fs.existsSync(output) && ['package.json', 'wrangler.jsonc'].includes(outputName)) {
           const current = JSON.parse(fs.readFileSync(output, 'utf8'))
           const overlay = JSON.parse(content)
@@ -88,7 +86,7 @@ async function main() {
     // Keep the scaffold output focused on actionable install/audit information.
     const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['install', '--loglevel=error'], { cwd: target, stdio: 'inherit', shell: process.platform === 'win32' })
     if (result.error || result.status !== 0) {
-      throw new Error(`Project created at ${target}, but npm install failed. Check GitHub Packages authentication and run npm install there to retry.`)
+      throw new Error(`Project created at ${target}, but npm install failed. Check the npm output above and run npm install there to retry.`)
     }
   }
   console.log(`Created ${target} (Cloudflare Workers, ${frontend === 'nuxt' ? 'Nuxt frontend' : 'API-only'})\n\nNext:\n  cd ${name}\n${install ? '' : '  npm install\n'}  npm run dev`)

@@ -1,7 +1,6 @@
-import { releaseFromCli } from './release-github.mjs'
-import { registry } from './pack-packages.mjs'
+import { releaseFromCli } from './release.mjs'
 
-Promise.resolve().then(() => releaseFromCli(registry)).catch((error) => {
+Promise.resolve().then(() => releaseFromCli()).catch((error) => {
   console.error(`[Honovel release] ${error.message}`)
   process.exitCode = 1
 })

@@ -50,14 +50,14 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/.local-tests/npm-cache
-          key: ${{ runner.os }}-integration-npm-${{ hashFiles('package-lock.json', 'packages/create-honovel/template/**/package.json.template', 'test/fixtures/node-adapter/package.json.template') }}
+          key: ${{ runner.os }}-integration-npm-${{ hashFiles('package-lock.json', 'packages/create-honovel/template/**/package.json.template') }}
           restore-keys: |
             ${{ runner.os }}-integration-npm-
       - run: npm install --global npm@11.6.0
       - run: npm ci
       - name: Verify packed packages and generated applications
         run: npm run test:packages
-      - name: Upload verified npm and GitHub tarballs
+      - name: Upload verified npm tarballs
         if: inputs.upload-packages
         uses: actions/upload-artifact@v4
         with:

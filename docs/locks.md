@@ -9,7 +9,7 @@ That relationship is important: Honovel does not need a separate lock backend wh
 Generated applications include this binding:
 
 ```ts
-import { CacheLock, Lock, Scope } from '@honovel/core'
+import { CacheLock, Lock, Scope } from 'honovel'
 
 @Scope({ provides: Lock })
 export class AppLock extends CacheLock {}
@@ -19,7 +19,6 @@ export class AppLock extends CacheLock {}
 
 As a result:
 
-- an existing Node application bound to `InMemoryCache` has process-local locks;
 - new Nuxt and API-only projects both use the Durable Object cache for locks by default;
 - replacing the application's `Cache` provider also changes the storage used by `CacheLock` automatically.
 
@@ -28,7 +27,7 @@ You normally do not need to replace `AppLock` when changing cache backends.
 ## Inject Lock
 
 ```ts
-import { Lock } from '@honovel/core'
+import { Lock } from 'honovel'
 
 export class InvoiceService {
   constructor(private readonly lock: Lock) {}
@@ -133,12 +132,6 @@ On the default Cloudflare cache, each group maps to one Durable Object. Grouping
 
 Without an explicit group, `CacheLock` creates an internal group based on the lock key.
 
-## Node.js behavior
-
-An existing Node application using `@honovel/node` uses `InMemoryCache`, so the default lock is also process-local. It prevents concurrent work within one Node process, but it cannot coordinate multiple replicas.
-
-For a single Node process this may be sufficient. For horizontally scaled production applications, replace the cache implementation with a shared backend such as Redis. Because `AppLock` extends `CacheLock`, the same lock code then becomes distributed automatically.
-
 ## Cloudflare behavior
 
 The Cloudflare starter uses `DurableObjectCache`. The same `AppLock` therefore stores leases through Durable Objects.
@@ -150,7 +143,7 @@ No additional `HONOVEL_LOCK` binding is required. Cache and lock coordination sh
 You can also replace the `Lock` contract itself when your infrastructure provides a dedicated lock service:
 
 ```ts
-import { Lock, Scope } from '@honovel/core'
+import { Lock, Scope } from 'honovel'
 
 @Scope({ provides: Lock })
 export class DatabaseLock extends Lock {

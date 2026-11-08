@@ -2,7 +2,7 @@ import {
   Cache,
   createDecorator,
   TooManyRequestsException,
-} from '@honovel/core'
+} from 'honovel'
 
 /**
  * Default API rate limit: 200 requests per minute per client IP.
@@ -37,7 +37,7 @@ export const IpRateLimit = createDecorator(
  */
 
 /*
-import { JwtPayload } from '@honovel/core'
+import { JwtPayload } from 'honovel'
 import { UserService } from './services/UserService'
 
 export const Header = createDecorator((context, name: string) =>

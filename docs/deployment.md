@@ -37,10 +37,10 @@ Infrastructure is selected through DI contracts. Applications can replace cache,
 Create a Cloudflare project:
 
 ```bash
-npm create @honovel/honovel@latest my-app -- --frontend=nuxt
+npm create honovel@latest my-app -- --frontend=nuxt
 ```
 
-The generated application installs `@honovel/cloudflare` and configures Cloudflare-native infrastructure.
+The generated application installs `honovel/cloudflare` and configures Cloudflare-native infrastructure.
 
 ### Default database
 
@@ -140,12 +140,12 @@ npm run deploy
 
 Cron schedules discovered from `@Cron()` jobs are included in generated `.honovel.wrangler.jsonc`. Edit the source `wrangler.jsonc`, not that generated file or Wrangler's deploy redirect. The Core tooling compiles before Wrangler reads the effective configuration and avoids re-entering the compiler during `wrangler types` or an already compiled deployment.
 
-The shared launch/build scripts are provided by `@honovel/core`; see [Starter tooling](/cli#starter-tooling).
+The shared launch/build scripts are provided by `honovel`; see [Starter tooling](/cli#starter-tooling).
 
 ## API-only projects
 
 ```bash
-npm create @honovel/honovel@latest my-api -- --api-only
+npm create honovel@latest my-api -- --api-only
 cd my-api
 npm run dev
 ```
@@ -154,9 +154,9 @@ Open `http://localhost:8788/api/health`. Only Wrangler runs. The project contain
 
 `npm run typecheck` checks only the backend. `npm run build` generates binding types, compiles in production mode and performs a Wrangler dry run into `dist/worker`. `npm run deploy` deploys only the Worker after the D1 placeholder check. The D1, cache, lock, queue and cron defaults are the same as in Nuxt projects.
 
-## Existing Node applications
+## Deployment runtime
 
-The initializer no longer creates Node projects. The separate `@honovel/node` adapter remains available to existing or manually configured Node applications; Core's runtime contracts remain unchanged. New project scaffolding always uses Cloudflare Workers.
+Honovel applications deploy to Cloudflare Workers. The `honovel` package includes the Cloudflare adapters under `honovel/cloudflare`; Node.js is required for local tooling only.
 
 ## Replacing runtime implementations
 
@@ -188,7 +188,7 @@ Controllers, listeners and services continue to inject Honovel's `Queue`, `Cache
 
 ## Environment configuration
 
-Keep deployment-specific values outside application source. Cloudflare uses typed runtime bindings; Node applications can map process environment and runtime resources into Hono's environment.
+Keep deployment-specific values outside application source and expose them through typed Cloudflare runtime bindings.
 
 ## Debug mode
 

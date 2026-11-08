@@ -1,4 +1,4 @@
-import { Queue, type LocalQueueConsumer, type QueuedMessage } from '@honovel/core'
+import { Queue, type LocalQueueConsumer, type QueuedMessage } from '../../queue/Queue.js'
 
 export interface CloudflareQueueBinding {
   send(message: QueuedMessage, options?: { delaySeconds?: number }): Promise<unknown>

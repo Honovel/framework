@@ -42,7 +42,7 @@ Honovel normalizes `''` to the internal `default` group.
 ## Inject Cache
 
 ```ts
-import { Cache } from '@honovel/core'
+import { Cache } from 'honovel'
 
 export class UserService {
   constructor(private readonly cache: Cache) {}
@@ -160,32 +160,14 @@ await this.cache.compareAndDelete('processing', 'invoice:42', 'worker-a')
 
 This is primarily useful for ownership-safe coordination. A process should not delete a lease that has already expired and been acquired by somebody else.
 
-## Node.js adapter implementation
-
-An existing Node application using `@honovel/node` binds `@honovel/node`'s `InMemoryCache` to the Core `Cache` contract:
-
-```ts
-import { Cache, Scope } from '@honovel/core'
-import { InMemoryCache } from '@honovel/node'
-
-@Scope({ provides: Cache })
-export class AppCache extends InMemoryCache {}
-```
-
-`InMemoryCache` stores data inside the current Node process. It is intentionally simple and useful for local development, tests and small single-process applications.
-
-It is **not shared between processes or replicas**. Restarting the process removes all entries. If two application replicas are running, each replica has its own cache.
-
-For production Node deployments with multiple replicas, replace it with a shared backend such as Redis or another distributed cache.
-
 ## Cloudflare default implementation
 
 The Cloudflare template binds `DurableObjectCache` to the `Cache` contract:
 
 ```ts
 import { Context } from 'hono'
-import { Cache, Scope } from '@honovel/core'
-import { BaseDurableObjectCache } from '@honovel/cloudflare'
+import { Cache, Scope } from 'honovel'
+import { BaseDurableObjectCache } from 'honovel/cloudflare'
 import type { AppEnv } from '../env'
 
 @Scope({ provides: Cache })
@@ -212,7 +194,7 @@ import {
   Scope,
   type CacheComparable,
   type CacheLookup,
-} from '@honovel/core'
+} from 'honovel'
 
 @Scope({ provides: Cache })
 export class RedisCache extends Cache {

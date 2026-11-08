@@ -1,4 +1,4 @@
-import { CacheLock, Lock, Scope } from '@honovel/core'
+import { CacheLock, Lock, Scope } from 'honovel'
 
 @Scope({ provides: Lock })
 export class AppLock extends CacheLock {}

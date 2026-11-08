@@ -25,7 +25,7 @@ The shared frontend build runs Nuxt generation:
 npm run build:frontend
 ```
 
-Internally, the starter calls `honovel frontend:build` from `@honovel/core`, which runs `nuxt generate frontend` in the application directory. Nuxt writes its generated site to `frontend/.output/public`; Honovel then copies that output to:
+Internally, the starter calls `honovel frontend:build` from `honovel`, which runs `nuxt generate frontend` in the application directory. Nuxt writes its generated site to `frontend/.output/public`; Honovel then copies that output to:
 
 ```text
 dist/frontend/
@@ -137,7 +137,7 @@ Cloudflare publishes `dist/frontend` as Workers Static Assets. Static frontend r
 Create an API-only project directly:
 
 ```bash
-npm create @honovel/honovel@latest my-api -- --api-only
+npm create honovel@latest my-api -- --api-only
 ```
 
 `--frontend=none` is equivalent. This omits `frontend/`, Nuxt/Vue/Tailwind dependencies, frontend npm scripts and Wrangler's static assets binding. `npm run dev` serves the API directly at `http://localhost:8788`; typechecking, building and deployment only process the Worker. Backend services, controllers, DI and validation are unchanged.

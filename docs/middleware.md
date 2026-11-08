@@ -9,7 +9,7 @@ npm run honovel -- make:middleware RequestLogging
 ```
 
 ```ts
-import { BaseMiddleware, type MiddlewareNext } from '@honovel/core'
+import { BaseMiddleware, type MiddlewareNext } from 'honovel'
 import type { Context } from 'hono'
 
 export class RequestLoggingMiddleware extends BaseMiddleware {
@@ -76,7 +76,7 @@ or:
 ## Inject dependencies
 
 ```ts
-import { BaseMiddleware, ForbiddenException, type MiddlewareNext } from '@honovel/core'
+import { BaseMiddleware, ForbiddenException, type MiddlewareNext } from 'honovel'
 import type { Context } from 'hono'
 
 export class TenantMiddleware extends BaseMiddleware {

@@ -25,7 +25,7 @@ import {
   JwtAuth,
   JwtPayload,
   type JwtPayload as JwtPayloadType,
-} from '@honovel/core'
+} from 'honovel'
 
 @JwtAuth({
   secret: Binding('JWT_SECRET'),
@@ -44,7 +44,7 @@ export class ApiController extends Controller {
 
 `Binding('JWT_SECRET')` tells Honovel not to treat the value as a literal. At runtime it reads `context.env.JWT_SECRET` and passes that value to Hono's JWT middleware. The same mechanism can be used for other string-valued JWT options that should be supplied by the runtime environment, including signing configuration.
 
-With Cloudflare, the referenced name must exist as a Worker binding. With Node, expose the corresponding value through the Hono environment passed to the application.
+The referenced name must exist as a Cloudflare Worker binding.
 
 `Binding()` also works recursively inside supported nested option objects and arrays, and can be used with `@BasicAuth()`, `@BearerAuth()` and `@JwtAuth()`.
 
@@ -173,7 +173,6 @@ Cloudflare applications define environment-specific values through Wrangler and 
 npm run cf-typegen
 ```
 
-Node applications can expose equivalent values through their Hono environment.
 
 ## OpenAPI integration
 

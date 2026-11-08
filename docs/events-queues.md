@@ -125,48 +125,9 @@ export class RebuildReportListener extends QueuedListener<RebuildReport> {
 }
 ```
 
-## Node.js adapter queue
-
-An existing Node application using `@honovel/node` intentionally starts with `InMemoryQueue`:
-
-```ts
-import { Queue, Scope } from '@honovel/core'
-import { InMemoryQueue } from '@honovel/node'
-
-@Scope({ provides: Queue })
-export class AppQueue extends InMemoryQueue {}
-```
-
-The queue schedules work with an in-process timer. Pending messages are lost when the Node process exits, and another application replica cannot consume those messages.
-
-This keeps the starter dependency-free and works well for development and tests. It should not be confused with a durable production queue.
-
-## Replacing the Node queue
-
-For production Node applications, implement the `Queue` contract using your preferred transport and select it through DI:
-
-```ts
-import { Queue, Scope, type QueuedMessage } from '@honovel/core'
-
-@Scope({ provides: Queue })
-export class PersistentQueue extends Queue {
-  constructor(private readonly broker: QueueBroker) {
-    super()
-  }
-
-  async enqueue(message: QueuedMessage, delaySeconds = 0) {
-    await this.broker.publish(message, { delaySeconds })
-  }
-}
-```
-
-The transport could be BullMQ/Redis, RabbitMQ, SQS or another queue. The adapter's responsibility is to persist and later deliver Honovel's serialized queued message to the Honovel consumer runtime.
-
-Application dispatching code does not change when the queue backend changes.
-
 ## Infrastructure choice
 
-New Nuxt and API-only projects both use Cloudflare-native services. The separately available Node adapter supplies in-memory implementations for existing or manually configured Node applications. The initializer no longer creates Node projects; the framework contracts remain available to existing runtime adapters.
+Nuxt and API-only projects both run on Cloudflare Workers and use Cloudflare-native queues, Durable Object cache and Cron Triggers. Cloudflare adapters are included in the `honovel/cloudflare` entry point of the `honovel` package.
 
 ## Queue failures and delivery
 
@@ -174,4 +135,4 @@ The generated Cloudflare queue handler acknowledges each successfully handled me
 
 Queued payloads are serialized through JSON and later hydrated onto the payload class prototype without calling its constructor. Dates become strings, and constructor validation or side effects are not replayed; load current domain data using IDs in the listener. Delay values must be finite and non-negative, and a positive delay on an immediate listener is rejected.
 
-For a custom transport consumer, the compiled `.honovel/app.js` exports `consumeQueueMessage(message, bindings, executionCtx?)`. It creates a fresh execution scope and invokes the registered queued listener. Call it from the runtime bootstrap that integrates your broker, and let the broker handle acknowledgment/retry. Keep business-code imports directed at source modules and `@honovel/core`, not generated files.
+For a custom transport consumer, the compiled `.honovel/app.js` exports `consumeQueueMessage(message, bindings, executionCtx?)`. It creates a fresh execution scope and invokes the registered queued listener. Call it from the runtime bootstrap that integrates your broker, and let the broker handle acknowledgment/retry. Keep business-code imports directed at source modules and `honovel`, not generated files.

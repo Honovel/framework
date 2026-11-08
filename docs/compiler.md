@@ -98,7 +98,7 @@ In generated projects, `npm run typecheck:backend` generates binding types and r
 
 ## Editor diagnostics
 
-The Core package includes the TypeScript language-service plugin at `@honovel/core/typescript-plugin`, configured by the starter's `tsconfig.json`. Use the project's installed TypeScript version in your editor and restart its TypeScript service after installing/updating dependencies. Editor diagnostics complement the compiler; CI should still run the build/typecheck commands.
+The Core package includes the TypeScript language-service plugin at `honovel/typescript-plugin`, configured by the starter's `tsconfig.json`. Use the project's installed TypeScript version in your editor and restart its TypeScript service after installing/updating dependencies. Editor diagnostics complement the compiler; CI should still run the build/typecheck commands.
 
 ## Framework repository versus applications
 
