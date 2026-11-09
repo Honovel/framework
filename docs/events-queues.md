@@ -99,6 +99,8 @@ Queued listeners run in a fresh Honovel DI scope. Services and repositories are 
 
 The original HTTP request is not preserved. Runtime environment bindings are made available by the queue runtime instead.
 
+Inject `Logger` into a queued listener or its services to emit structured logs with automatic service names. Queue logs have no automatic HTTP request ID; include correlation fields in the payload when needed. See [Logging in queued listeners](/logging#logging-in-queued-listeners) for examples using injection and `Logger.named()`.
+
 ## One handler per payload
 
 Each payload type has exactly one discovered `Listener<T>` or `QueuedListener<T>`. Duplicate handlers are rejected during compilation.

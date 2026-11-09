@@ -16,19 +16,16 @@ function serviceNameOf(service: string | NamedService): string {
 }
 
 /**
- * Request-scoped structured logger.
+ * Execution-scoped structured logger for HTTP requests and background work.
  *
- * Inject it into services and bind the emitting service once:
+ * The compiler automatically binds injected loggers to the receiving class:
  *
- *   private readonly logger: Logger<AuthService>
- *   constructor(logger: Logger<AuthService>) {
- *     this.logger = logger.forService(AuthService)
- *   }
+ *   constructor(private readonly logger: Logger) {}
  *
- * Services may declare `static readonly serviceName = 'AuthService'` so logs
- * keep a stable name after bundling and minification.
+ * Services may declare `static readonly serviceName = 'Authentication'` to
+ * override the name. The default class name remains stable after minification.
  */
-export class Logger<T = unknown> {
+export class Logger {
   static readonly __honovelBuiltin = 'logger'
 
   private serviceName = 'App'
@@ -44,40 +41,70 @@ export class Logger<T = unknown> {
     return new Logger(context, service)
   }
 
-  forService<U = T>(service: string | NamedService): Logger<U> {
-    return new Logger<U>(this.context, service)
+  forService(service: string | NamedService): Logger {
+    return new Logger(this.context, service)
   }
 
-  debug(event: string, fields: LogFields = {}): void {
-    this.write('debug', 'log', event, fields)
+  debug(message: string): void
+  debug(message: string, fields: LogFields): void
+  debug(message: string, event: string): void
+  debug(message: string, event: string, fields: LogFields): void
+  debug(message: string, eventOrFields: string | LogFields = 'log', fields: LogFields = {}): void {
+    this.write('debug', 'log', message, eventOrFields, fields)
   }
 
-  info(event: string, fields: LogFields = {}): void {
-    this.write('info', 'log', event, fields)
+  info(message: string): void
+  info(message: string, fields: LogFields): void
+  info(message: string, event: string): void
+  info(message: string, event: string, fields: LogFields): void
+  info(message: string, eventOrFields: string | LogFields = 'log', fields: LogFields = {}): void {
+    this.write('info', 'log', message, eventOrFields, fields)
   }
 
-  warn(event: string, fields: LogFields = {}): void {
-    this.write('warn', 'log', event, fields)
+  warn(message: string): void
+  warn(message: string, fields: LogFields): void
+  warn(message: string, event: string): void
+  warn(message: string, event: string, fields: LogFields): void
+  warn(message: string, eventOrFields: string | LogFields = 'log', fields: LogFields = {}): void {
+    this.write('warn', 'log', message, eventOrFields, fields)
   }
 
-  error(event: string, fields: LogFields = {}): void {
-    this.write('error', 'log', event, fields)
+  error(message: string): void
+  error(message: string, fields: LogFields): void
+  error(message: string, event: string): void
+  error(message: string, event: string, fields: LogFields): void
+  error(message: string, eventOrFields: string | LogFields = 'log', fields: LogFields = {}): void {
+    this.write('error', 'log', message, eventOrFields, fields)
   }
 
-  audit(event: string, fields: LogFields = {}): void {
-    this.write('info', 'audit', event, fields)
+  audit(message: string): void
+  audit(message: string, fields: LogFields): void
+  audit(message: string, event: string): void
+  audit(message: string, event: string, fields: LogFields): void
+  audit(message: string, eventOrFields: string | LogFields = 'log', fields: LogFields = {}): void {
+    this.write('info', 'audit', message, eventOrFields, fields)
   }
 
-  private write(level: LogLevel, kind: LogKind, event: string, fields: LogFields): void {
-    const requestId = this.context.get('requestId') as string | undefined
+  private write(
+    level: LogLevel,
+    kind: LogKind,
+    message: string,
+    eventOrFields: string | LogFields,
+    fields: LogFields,
+  ): void {
+    const event = typeof eventOrFields === 'string' ? eventOrFields : 'log'
+    const customFields = typeof eventOrFields === 'string' ? fields : eventOrFields
+    // Queue and cron scopes provide environment bindings without HTTP variables.
+    const requestId = this.context.get?.('requestId') as string | undefined
     const line = JSON.stringify({
-      ...fields,
+      ...customFields,
       timestamp: new Date().toISOString(),
       level,
       kind,
       service: this.serviceName,
       ...(requestId ? { requestId } : {}),
       event,
+      message,
     })
 
     if (level === 'error') console.error(line)

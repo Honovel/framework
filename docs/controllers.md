@@ -165,4 +165,4 @@ Honovel emits separate routes and OpenAPI paths for each prefix. When the contro
 
 `return this.noContent()` sends `204 No Content`. A handler returning `undefined` also produces a `204` response. Returned `Response` objects pass through unchanged; other values are serialized as JSON. You can use the protected `this.context` inside a handler for Hono-specific response helpers.
 
-Primitive route/query bindings support strings, numbers and booleans. Boolean input accepts `true`/`1` and `false`/`0`. Missing required values and invalid conversions return `422`; optional parameters and default values allow omitted input. Use a FormRequest when input needs richer validation.
+Primitive route/query bindings support strings, numbers and booleans. Boolean input accepts `true`/`1` and `false`/`0`. Numbers must be finite and use JSON number syntax; empty values, whitespace, hexadecimal notation and infinity are rejected. Repeated query keys for scalar parameters are also rejected. Missing required values and invalid conversions return `422`; optional parameters and default values allow omitted input. Use a FormRequest when input needs richer validation.

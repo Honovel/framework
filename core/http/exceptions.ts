@@ -349,7 +349,7 @@ function renderDefaultException(
 function logServerError(context: AnyContext, error: unknown, details: ErrorDetails): void {
   if (details.status < 500) return
 
-  Logger.named(context, 'ExceptionHandler').error('http.exception', {
+  Logger.named(context, 'ExceptionHandler').error(error instanceof Error ? error.message : String(error), 'http.exception', {
     status: details.status,
     method: context.req.method,
     path: context.req.path,

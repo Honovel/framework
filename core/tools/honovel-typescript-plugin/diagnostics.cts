@@ -546,7 +546,7 @@ function classExtendsFormRequest(ts, classDeclaration, checker, seen = new Set()
 function isFormRequestParameter(ts, parameter, checker) {
   const classDeclaration = classDeclarationForType(
     ts,
-    checker.getTypeAtLocation(parameter),
+    checker.getNonNullableType(checker.getTypeAtLocation(parameter)),
     checker,
   )
 
@@ -554,7 +554,116 @@ function isFormRequestParameter(ts, parameter, checker) {
     && classExtendsFormRequest(ts, classDeclaration, checker)
 }
 
-const formRequestReservedFields = new Set(['req', 'validated', 'all', 'input'])
+function formRequestParameterOutputTypes(ts, parameter, checker) {
+  const type = checker.getNonNullableType(checker.getTypeAtLocation(parameter))
+  const outputs = propertyTypes(checker, type, 'validated', parameter).flatMap((methodType) =>
+    methodType.getCallSignatures().map((signature) => checker.getReturnTypeOfSignature(signature)),
+  )
+  if (outputs.length) return outputs
+  const declaration = classDeclarationForType(ts, type, checker)
+  return declaration ? schemaOutputTypes(checker, formRequestSchemaExpression(ts, declaration)) : []
+}
+
+function formRequestUsesQueryPrefix(ts, parameter, checker) {
+  const { decoder } = formRequestQueryDecoding(ts, parameter, checker)
+  if (decoder !== 'raw') return typeof decoder === 'object'
+  return formRequestParameterOutputTypes(ts, parameter, checker).some((output) => {
+    const type = checker.getNonNullableType(output)
+    return !!(type.flags & ts.TypeFlags.Object)
+      && !checker.isArrayType(type)
+      && !checker.isTupleType(type)
+  })
+}
+
+function queryPrimitiveDecoder(ts, type) {
+  const parts = (type.isUnion?.() ? type.types : [type])
+    .filter((part) => !(part.flags & ts.TypeFlags.Undefined))
+  const kinds = parts.map((part) => {
+    if (part.flags & ts.TypeFlags.StringLike) return 'string'
+    if (part.flags & ts.TypeFlags.NumberLike) return 'number'
+    if (part.flags & ts.TypeFlags.BooleanLike) return 'boolean'
+    return 'raw'
+  })
+  return kinds.length && kinds.every((kind) => kind === kinds[0]) ? kinds[0] : 'raw'
+}
+
+function formRequestQueryDecoding(ts, parameter, checker) {
+  const requestType = checker.getNonNullableType(checker.getTypeAtLocation(parameter))
+  const declaration = classDeclarationForType(ts, requestType, checker)
+  const symbol = declaration?.name && checker.getSymbolAtLocation(declaration.name)
+  const constructorType = symbol && checker.getTypeOfSymbolAtLocation(symbol, declaration.name)
+  const schemas = constructorType ? propertyTypes(checker, constructorType, 'schema', parameter) : []
+  const inputs = schemas.flatMap((schema) => {
+    const zodInputs = propertyTypes(checker, schema, '_input', parameter)
+    if (zodInputs.length) return zodInputs
+    return propertyTypes(checker, schema, '~standard', parameter).flatMap((standard) =>
+      propertyTypes(checker, standard, 'types', parameter).flatMap((types) =>
+        propertyTypes(checker, types, 'input', parameter),
+      ),
+    )
+  })
+  const warnings: string[] = []
+  if (inputs.length !== 1) {
+    warnings.push('schema input type cannot be inferred')
+    return { decoder: 'raw', warnings }
+  }
+  const input = inputs[0]
+  const primitive = queryPrimitiveDecoder(ts, input)
+  const inputType = input.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) ? undefined : input
+  if (primitive !== 'raw') return { decoder: primitive, warnings, inputType }
+
+  // Only the root query object is assembled. Arrays and nested objects stay raw.
+  const type = checker.getNonNullableType(input)
+  const fromStandardLibrary = type.getSymbol()?.declarations?.some((node) => node.getSourceFile().hasNoDefaultLib)
+  if (
+    type.flags & ts.TypeFlags.Object
+    && !checker.isArrayType(type) && !checker.isTupleType(type)
+    && !fromStandardLibrary
+    && !type.getCallSignatures().length
+  ) {
+    if (type.getStringIndexType()) warnings.push('dynamic object fields have no supported scalar decoding plan')
+    if (input.isUnion?.() && input.types.some((part) => part.flags & ts.TypeFlags.Null)) {
+      warnings.push('null input has no automatic query representation')
+    }
+    const fields = type.getProperties().map((property) => {
+      const location = property.valueDeclaration ?? property.declarations?.[0] ?? parameter
+      const fieldType = checker.getTypeOfSymbolAtLocation(property, location)
+      const decoder = queryPrimitiveDecoder(ts, fieldType)
+      if (decoder === 'raw') warnings.push(`field "${property.name}" has unsupported input type ${checker.typeToString(fieldType)}`)
+      return [property.name, decoder]
+    })
+    return { decoder: { fields }, warnings, inputType }
+  }
+  warnings.push(`unsupported input type ${checker.typeToString(input)}`)
+  return { decoder: 'raw', warnings, inputType }
+}
+
+function queryTypeWarnings(ts, sourceFile, parameter, checker, formRequest) {
+  const warnings = formRequest
+    ? formRequestQueryDecoding(ts, parameter, checker).warnings
+    : queryPrimitiveDecoder(ts, checker.getTypeAtLocation(parameter)) === 'raw'
+      ? [`unsupported input type ${checker.typeToString(checker.getTypeAtLocation(parameter))}`]
+      : []
+  return warnings.map((reason) => ({
+    ...diagnostic(ts, sourceFile, parameter.name, 95021,
+      `Query/Param "${parameter.name.getText(sourceFile)}": ${reason}. Honovel only automatically decodes string, number and boolean. Other values remain raw; accept strings and parse them explicitly.`),
+    category: ts.DiagnosticCategory.Warning,
+  }))
+}
+
+function typeContainsQueryObject(ts, type, checker, seen = new Set()) {
+  if (!type || seen.has(type)) return false
+  seen.add(type)
+  if (type.isUnion?.() || type.isIntersection?.()) {
+    return type.types.some((part) => typeContainsQueryObject(ts, part, checker, seen))
+  }
+  if (checker.isArrayType(type) || checker.isTupleType(type)) {
+    return checker.getTypeArguments(type).some((part) => typeContainsQueryObject(ts, part, checker, seen))
+  }
+  return !!(type.flags & ts.TypeFlags.Object)
+}
+
+const formRequestReservedFields = new Set(['req', 'validated'])
 
 function isHonoRequestParameter(ts, parameter, checker) {
   const classDeclaration = classDeclarationForType(
@@ -1213,9 +1322,28 @@ function collectHonovelDiagnostics(ts, program, sourceFile) {
           continue
         }
 
-        if (queryDecorator) continue
+        if (queryDecorator) {
+          diagnostics.push(...queryTypeWarnings(ts, sourceFile, parameter, checker, isFormRequestParameter(ts, parameter, checker)))
+          const key = staticStringArgument(ts, queryDecorator, undefined)
+          if (
+            key !== undefined
+            && isFormRequestParameter(ts, parameter, checker)
+            && formRequestQueryDecoding(ts, parameter, checker).decoder === 'raw'
+            && !formRequestUsesQueryPrefix(ts, parameter, checker)
+            && formRequestParameterOutputTypes(ts, parameter, checker).some((type) =>
+              typeContainsQueryObject(ts, type, checker),
+            )
+          ) {
+            diagnostics.push(diagnostic(
+              ts, sourceFile, parameter.name, 95020,
+              `Named query parameter "${key}" must have an object output for prefixed fields, a primitive output, or an array of primitives. Arrays of objects and mixed object unions are not supported.`,
+            ))
+          }
+          continue
+        }
 
         if (paramDecorator) {
+          diagnostics.push(...queryTypeWarnings(ts, sourceFile, parameter, checker, false))
           const explicitName = staticStringArgument(ts, paramDecorator, name)
 
           if (explicitName !== undefined && explicitName !== name) {
@@ -1235,6 +1363,7 @@ function collectHonovelDiagnostics(ts, program, sourceFile) {
         if (isFormRequestParameter(ts, parameter, checker)) continue
 
         if (placeholderSet.has(name)) {
+          if (!paramDecorator) diagnostics.push(...queryTypeWarnings(ts, sourceFile, parameter, checker, false))
           consumed.add(name)
           continue
         }
@@ -1275,4 +1404,6 @@ function collectHonovelDiagnostics(ts, program, sourceFile) {
 
 export = {
   collectHonovelDiagnostics,
+  formRequestUsesQueryPrefix,
+  formRequestQueryDecoding,
 }

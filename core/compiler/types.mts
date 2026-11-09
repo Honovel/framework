@@ -1,4 +1,5 @@
 import type ts from 'typescript'
+import type { CompiledQueryDecoder } from '../http/routeRuntime.js'
 
 export interface ClassReference {
   className: string
@@ -48,6 +49,9 @@ export interface ParameterBinding {
   key?: string
   primitive?: string
   required?: boolean
+  queryPrefix?: boolean
+  queryDecoder?: CompiledQueryDecoder
+  requestInputType?: ts.Type
   parameter: ts.ParameterDeclaration
   requestClass?: ClassReference
   decoratorName?: string

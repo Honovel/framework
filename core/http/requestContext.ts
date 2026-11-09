@@ -30,7 +30,7 @@ function logRejectedRequest(
 ): void {
   if (status !== 403 && status !== 429) return
 
-  Logger.named(context, 'RequestContext').warn('http.request', {
+  Logger.named(context, 'RequestContext').warn('http.request', 'http.request', {
     requestId,
     method: context.req.method,
     path: context.req.path,

@@ -25,7 +25,7 @@ declare function BaseUrl(paths: string | readonly string[]): ClassDecorator
 declare function Query(key?: string): ParameterDecorator
 declare function Scope(options?: any): ClassDecorator
 declare function Middleware(...middleware: any[]): ClassDecorator & MethodDecorator
-declare function FormRequest<TSchema>(schema: TSchema): { new (...args: any[]): any }
+declare function FormRequest<TSchema>(schema: TSchema): { new (...args: any[]): any; readonly schema: TSchema }
 abstract class BaseMiddleware { abstract handle(): any }
 
 class MissingService {}
@@ -60,6 +60,15 @@ export class MissingContractConsumer { constructor(dependency: MissingContract) 
 
 declare const reservedSchema: { _output: { req: string } }
 export class ReservedRequest extends FormRequest(reservedSchema) {}
+declare const allFieldSchema: { _output: { all: boolean } }
+export class AllFieldRequest extends FormRequest(allFieldSchema) {}
+declare const inputFieldSchema: { _output: { input: string } }
+export class InputFieldRequest extends FormRequest(inputFieldSchema) {}
+declare const typedSchema: {
+  _input: { age?: number; active: boolean; nested: { value: string } }
+  _output: { age?: number; active: boolean; nested: { value: string } }
+}
+export class TypedRequest extends FormRequest(typedSchema) {}
 
 class NotMiddleware {}
 class ValidMiddleware extends BaseMiddleware { handle() {} }
@@ -76,9 +85,24 @@ class TestController extends Controller {
 
   @Get('/decorated')
   invalid(@Query() decoratedRequest: HonoRequest) {}
+
+  @Get('/optional-request')
+  optional(optionalRequest?: AllFieldRequest) {}
+
+  @Get('/named-object')
+  namedObject(@Query('custom-name') namedData?: AllFieldRequest) {}
+
+  @Get('/named-primitive')
+  namedPrimitive(@Query('custom-name') primitiveData?: string) {}
+
+  @Get('/typed')
+  typed(@Query() typedData: TypedRequest) {}
+
+  @Get('/:unsupported')
+  unsupported(unsupported: { value: string }) {}
 }
 `
-const options = { experimentalDecorators: true, noLib: true, target: ts.ScriptTarget.ESNext }
+const options = { experimentalDecorators: true, noLib: true, strictNullChecks: true, target: ts.ScriptTarget.ESNext }
 const host = ts.createCompilerHost(options)
 const originalGetSourceFile = host.getSourceFile.bind(host)
 const originalFileExists = host.fileExists.bind(host)
@@ -134,10 +158,32 @@ const rawRouteDiagnostic = diagnostics.find(
   (item) => item.code === 95001 && item.start === source.indexOf('rawRequest: HonoRequest'),
 )
 if (rawRouteDiagnostic) throw new Error('Honovel plugin rejected HonoRequest as a controller parameter.')
+const queryWarning = diagnostics.find((item) => item.code === 95021 && item.messageText.includes('field "nested"'))
+if (!queryWarning || queryWarning.category !== ts.DiagnosticCategory.Warning) {
+  throw new Error('Honovel plugin did not warn about unsupported query input fields.')
+}
+if (diagnostics.some((item) => item.code === 95021 && /field "(age|active)"/.test(item.messageText))) {
+  throw new Error('Honovel plugin warned about supported query input types.')
+}
+if (!diagnostics.some((item) => item.code === 95021 && item.start === source.indexOf('unsupported: {'))) {
+  throw new Error('Honovel plugin did not warn about an unsupported route parameter type.')
+}
+if (diagnostics.some((item) => item.code === 95020 && item.start === source.indexOf('namedData?:'))) {
+  throw new Error('Honovel plugin rejected a prefixed query FormRequest with an object output.')
+}
+if (diagnostics.some((item) => item.code === 95001 && item.start === source.indexOf('optionalRequest?:'))) {
+  throw new Error('Honovel plugin rejected an optional FormRequest parameter.')
+}
 
 const reservedDiagnostic = diagnostics.find(
   (item) => item.code === 95011 && item.messageText.includes('"req"'),
 )
 if (!reservedDiagnostic) throw new Error('Honovel plugin did not reject a reserved FormRequest field.')
+if (diagnostics.some((item) => item.code === 95011 && item.messageText.includes('"all"'))) {
+  throw new Error('Honovel plugin still reserves the removed FormRequest method "all".')
+}
+if (diagnostics.some((item) => item.code === 95011 && item.messageText.includes('"input"'))) {
+  throw new Error('Honovel plugin still reserves the removed FormRequest method "input".')
+}
 
 console.log('[Honovel] TypeScript language service plugin check passed.')

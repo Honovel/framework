@@ -29,9 +29,25 @@ app.get('/boom', () => {
   throw new Error('fixture failure')
 })
 app.get('/log', (context) => {
-  Logger.named(context, 'FixtureService').info('fixture.event', { answer: 42 })
+  Logger.named(context, 'FixtureService').info('Fixture message', 'fixture.event', { answer: 42 })
   return context.json({ ok: true })
 })
+const loggerMethods = ['debug', 'info', 'warn', 'error', 'audit'] as const
+for (const method of loggerMethods) {
+  app.get(`/overloads/${method}`, (context) => {
+    const logger = Logger.named(context, 'OverloadService')
+    const fields = {
+      custom: { answer: 42 },
+      event: 'spoofed', message: 'spoofed', level: 'spoofed', kind: 'spoofed',
+      service: 'spoofed', requestId: 'spoofed', timestamp: 'spoofed',
+    }
+    logger[method]('My message', 'cleanup.complete', fields)
+    logger[method]('My message', fields)
+    logger[method]('My message', 'cleanup.complete')
+    logger[method]('My message')
+    return context.json({ ok: true })
+  })
+}
 registerExceptionHandler(app)
 
 const ok = await app.request('/ok')
@@ -74,6 +90,7 @@ assert.equal(error.level, 'error')
 assert.equal(error.service, 'ExceptionHandler')
 assert.equal(error.requestId, 'request-1')
 assert.equal(error.event, 'http.exception')
+assert.equal(error.message, 'fixture failure')
 assert.equal(error.exception, 'Error')
 
 const logLines = await captureConsole('log', async () => {
@@ -87,7 +104,29 @@ assert.equal(log.kind, 'log')
 assert.equal(log.service, 'FixtureService')
 assert.equal(log.requestId, 'request-1')
 assert.equal(log.event, 'fixture.event')
+assert.equal(log.message, 'Fixture message')
 assert.equal(log.answer, 42)
+
+for (const method of loggerMethods) {
+  const consoleMethod = method === 'info' || method === 'audit' ? 'log' : method
+  const lines = await captureConsole(consoleMethod, async () => {
+    const response = await app.request(`/overloads/${method}`)
+    assert.equal(response.status, 200)
+  })
+  assert.equal(lines.length, 4)
+  for (const [index, line] of lines.entries()) {
+    const entry = JSON.parse(line)
+    assert.equal(entry.message, 'My message')
+    assert.equal(entry.event, index % 2 === 0 ? 'cleanup.complete' : 'log')
+    assert.equal(entry.level, method === 'audit' ? 'info' : method)
+    assert.equal(entry.kind, method === 'audit' ? 'audit' : 'log')
+    assert.equal(entry.service, 'OverloadService')
+    assert.equal(entry.requestId, 'request-1')
+    assert.ok(Number.isFinite(Date.parse(entry.timestamp)))
+    if (index < 2) assert.deepEqual(entry.custom, { answer: 42 })
+    else assert.equal(Object.hasOwn(entry, 'custom'), false)
+  }
+}
 
 const customApp = new Hono()
 customApp.use('*', requestContext({ generateRequestId: () => 'request-2' }))

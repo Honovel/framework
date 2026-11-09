@@ -563,7 +563,7 @@ function exceptionAnalyzer({ ts, checker, providers, providerBindings, fail, err
 }
 
 function formRequestOutputType(checker, parameter) {
-  const requestType = checker.getTypeAtLocation(parameter)
+  const requestType = checker.getNonNullableType(checker.getTypeAtLocation(parameter))
   const validated = requestType.getProperty?.('validated')
   if (!validated) return undefined
 
@@ -573,11 +573,11 @@ function formRequestOutputType(checker, parameter) {
   return signature ? checker.getReturnTypeOfSignature(signature) : undefined
 }
 
-function queryParametersFromSchema(schema, requiredNames: string[] = []) {
+function queryParametersFromSchema(schema, bindingRequired = true, prefix?: string) {
   if (!schema || schema.type !== 'object' || !schema.properties) return []
-  const required = new Set(schema.required ?? requiredNames)
+  const required = new Set(bindingRequired ? schema.required ?? [] : [])
   return Object.entries(schema.properties).map(([name, propertySchema]) => ({
-    name,
+    name: prefix === undefined ? name : `${prefix}.${name}`,
     in: 'query',
     required: required.has(name),
     schema: propertySchema,
@@ -640,9 +640,9 @@ export function createOpenApiDocument({
       const parameterType = checker.getTypeAtLocation(binding.parameter)
       let schema
       if (binding.kind === 'formRequest') {
-        const outputType = formRequestOutputType(checker, binding.parameter) ?? parameterType
+        const inputType = binding.requestInputType ?? formRequestOutputType(checker, binding.parameter) ?? parameterType
         const componentName = binding.requestClass.className
-        schemaBuilder.components[componentName] ??= schemaBuilder.schemaForType(outputType, { inline: true })
+        schemaBuilder.components[componentName] ??= schemaBuilder.schemaForType(inputType, { inline: true })
         schema = { $ref: `#/components/schemas/${componentName}` }
       } else {
         schema = schemaBuilder.schemaForType(parameterType)
@@ -654,10 +654,13 @@ export function createOpenApiDocument({
           content: { 'application/json': { schema } },
         }
       } else if (binding.source === 'query') {
-        if (binding.key) {
-          parameters.push({ name: binding.key, in: 'query', required: true, schema })
+        if (binding.key !== undefined && !binding.queryPrefix) {
+          parameters.push({ name: binding.key, in: 'query', required: binding.required !== false, schema })
         } else {
-          parameters.push(...queryParametersFromSchema(schema))
+          const querySchema = binding.kind === 'formRequest'
+            ? schemaBuilder.components[binding.requestClass.className]
+            : schema
+          parameters.push(...queryParametersFromSchema(querySchema, binding.required !== false, binding.queryPrefix ? binding.key : undefined))
         }
       }
     }

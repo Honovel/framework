@@ -193,5 +193,28 @@ assert.throws(
   () => new CreateRequest({ req: 'reserved' } as unknown as { title: string }, seenRequests[0]),
   /FormRequest field "req" is reserved by Honovel/,
 )
+const request = new CreateRequest({ title: 'Test' }, seenRequests[0])
+assert.equal('all' in request, false)
+assert.equal('input' in request, false)
+assert.equal(request.title, 'Test')
+assert.deepEqual(request.validated(), { title: 'Test' })
+
+class AllFieldRequest extends FormRequest({
+  safeParse() {
+    return { success: true as const, data: { all: true } }
+  },
+}) {}
+const allFieldRequest = new AllFieldRequest({ all: true }, seenRequests[0])
+assert.equal(allFieldRequest.all, true)
+assert.deepEqual(allFieldRequest.validated(), { all: true })
+
+class InputFieldRequest extends FormRequest({
+  safeParse() {
+    return { success: true as const, data: { input: 'value' } }
+  },
+}) {}
+const inputFieldRequest = new InputFieldRequest({ input: 'value' }, seenRequests[0])
+assert.equal(inputFieldRequest.input, 'value')
+assert.deepEqual(inputFieldRequest.validated(), { input: 'value' })
 
 console.log('[Honovel] Hono Context and HonoRequest DI runtime check passed.')

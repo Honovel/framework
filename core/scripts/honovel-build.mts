@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { createOpenApiDocument } from '../compiler/openapi.mjs'
 
 const require = createRequire(import.meta.url)
-const { collectHonovelDiagnostics } = require('../tools/honovel-typescript-plugin/diagnostics.cjs')
+const { collectHonovelDiagnostics, formRequestUsesQueryPrefix, formRequestQueryDecoding } = require('../tools/honovel-typescript-plugin/diagnostics.cjs')
 
 const projectRoot = process.cwd()
 const coreRoot = fileURLToPath(new URL('../', import.meta.url))
@@ -1325,7 +1325,7 @@ function classExtendsFormRequest(classDeclaration, checker, seen = new Set()) {
 }
 
 function formRequestClassForParameter(parameter, checker) {
-  const classDeclaration = classDeclarationForType(checker.getTypeAtLocation(parameter), checker)
+  const classDeclaration = classDeclarationForType(checker.getNonNullableType(checker.getTypeAtLocation(parameter)), checker)
   if (!classDeclaration || !classExtendsFormRequest(classDeclaration, checker)) return undefined
 
   return {
@@ -1785,7 +1785,15 @@ function analyzeRoutes(program) {
             const key = explicitQueryName ?? (requestClass ? undefined : name)
 
             if (requestClass) {
-              bindings.push({ source: 'query', kind: 'formRequest', key, requestClass, parameter })
+              const queryDecoding = formRequestQueryDecoding(ts, parameter, checker)
+              bindings.push({
+                source: 'query', kind: 'formRequest', key, requestClass,
+                required: !parameterIsOptional(parameter, checker),
+                queryPrefix: key !== undefined && formRequestUsesQueryPrefix(ts, parameter, checker),
+                queryDecoder: queryDecoding.decoder,
+                requestInputType: queryDecoding.inputType,
+                parameter,
+              })
               continue
             }
 
@@ -1807,7 +1815,7 @@ function analyzeRoutes(program) {
           if (requestClass) {
             bodyBindings += 1
             if (bodyBindings > 1) fail('A controller method may only have one body FormRequest parameter.', parameter)
-            bindings.push({ source: 'body', kind: 'formRequest', requestClass, parameter })
+            bindings.push({ source: 'body', kind: 'formRequest', requestClass, parameter, requestInputType: formRequestQueryDecoding(ts, parameter, checker).inputType })
             continue
           }
 
@@ -1954,7 +1962,9 @@ function generateEntries(routes, listeners, cronJobs, providers, providerBinding
     const dependencies = provider.dependencies.map((dependency) => {
       if (dependency.builtin === 'hono-context') return 'scope.resolve(HonoContext)'
       if (dependency.builtin === 'hono-request') return 'scope.resolve(HonoRequestToken)'
-      if (dependency.builtin === 'logger') return 'scope.resolve(Logger)'
+      if (dependency.builtin === 'logger') {
+        return `scope.resolve(Logger).forService(${providerAlias}.${provider.className}.serviceName ?? ${JSON.stringify(provider.className)})`
+      }
       if (dependency.builtin === 'dispatcher') return 'scope.resolve(Dispatcher)'
 
       const dependencyAlias = aliasFor(dependency.sourceFile)
@@ -1993,9 +2003,11 @@ function generateEntries(routes, listeners, cronJobs, providers, providerBinding
     if (binding.source === 'param') {
       rawExpression = `context.req.param(${JSON.stringify(binding.key)})`
     } else if (binding.source === 'query') {
-      rawExpression = binding.key === undefined
-        ? queryVariable
-        : `${queryVariable}[${JSON.stringify(binding.key)}]`
+      rawExpression = binding.queryPrefix
+        ? `readCompiledQueryObject(${queryVariable}, ${JSON.stringify(binding.key)})`
+        : binding.key === undefined
+          ? queryVariable
+          : `${queryVariable}[${JSON.stringify(binding.key)}]`
     } else {
       rawExpression = bodyVariable
     }
@@ -2010,7 +2022,15 @@ function generateEntries(routes, listeners, cronJobs, providers, providerBinding
     }
 
     const requestAlias = aliasFor(binding.requestClass.sourceFile)
-    return `await createCompiledFormRequest(context, ${requestAlias}.${binding.requestClass.className}, ${rawExpression}, ${JSON.stringify(binding.source)})`
+    const queryDecoder = binding.source === 'query' ? `, ${JSON.stringify(binding.queryDecoder ?? 'raw')}` : ''
+    const createRequest = `await createCompiledFormRequest(context, ${requestAlias}.${binding.requestClass.className}, ${rawExpression}, ${JSON.stringify(binding.source)}${queryDecoder})`
+    if (binding.source === 'query' && binding.required === false) {
+      const missing = binding.key === undefined || binding.queryPrefix
+        ? `Object.keys(${rawExpression}).length === 0`
+        : `${rawExpression} === undefined`
+      return `(${missing} ? undefined : ${createRequest})`
+    }
+    return createRequest
   }
 
   function renderCompiledAuthValue(value) {
@@ -2116,7 +2136,7 @@ function generateEntries(routes, listeners, cronJobs, providers, providerBinding
     `import { Logger } from '${runtimeImport('logging/Logger')}'`,
     `import { bindControllerContext } from '${runtimeImport('http/Controller')}'`,
     `import { registerExceptionHandler } from '${runtimeImport('http/exceptions')}'`,
-    `import { coerceCompiledBoolean, coerceCompiledNumber, coerceCompiledString, createCompiledFormRequest, createCompiledQueueScope, createCompiledRequestScope, normalizeCompiledResult, readCompiledBody, readCompiledQuery, resolveCompiledDecorator, runCompiledHonoMiddleware, runCompiledMiddlewareChain } from '${runtimeImport('http/routeRuntime')}'`,
+    `import { coerceCompiledBoolean, coerceCompiledNumber, coerceCompiledString, createCompiledFormRequest, createCompiledQueueScope, createCompiledRequestScope, normalizeCompiledResult, readCompiledBody, readCompiledQuery, readCompiledQueryObject, resolveCompiledDecorator, runCompiledHonoMiddleware, runCompiledMiddlewareChain } from '${runtimeImport('http/routeRuntime')}'`,
     ...(documentationEnabled ? [`import { registerOpenApiRoutes } from '${runtimeImport('openapi/runtime')}'`] : []),
     ...imports,
     '',
@@ -2273,7 +2293,7 @@ function main() {
     console.error(
       ts.formatDiagnosticsWithColorAndContext(honovelDiagnostics, diagnosticHost),
     )
-    process.exit(1)
+    if (honovelDiagnostics.some((item) => item.category === ts.DiagnosticCategory.Error)) process.exit(1)
   }
 
   try {

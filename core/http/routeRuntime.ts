@@ -8,6 +8,8 @@ import type { HonovelDecorator } from './customDecorators.js'
 import { ValidationException, validateSchema, type ValidationIssue } from './validation.js'
 
 export type CompiledSource = 'body' | 'param' | 'query'
+export type CompiledQueryDecoder = 'raw' | 'string' | 'number' | 'boolean'
+  | { fields: [string, 'raw' | 'string' | 'number' | 'boolean'][] }
 
 type RuntimeDecorator = HonovelDecorator<any, unknown>
 type DecoratorCache = WeakMap<RuntimeDecorator, Map<string, Promise<unknown>>>
@@ -31,6 +33,19 @@ export function readCompiledQuery(context: Context): Record<string, string | str
       key,
       values.length === 1 ? values[0] : values,
     ]),
+  )
+}
+
+/** Bind the fields under a named query prefix without parsing JSON values. */
+export function readCompiledQueryObject(
+  query: Record<string, string | string[]>,
+  prefix: string,
+): Record<string, string | string[]> {
+  const start = `${prefix}.`
+  return Object.fromEntries(
+    Object.entries(query)
+      .filter(([key]) => key.startsWith(start) && key.length > start.length)
+      .map(([key, value]) => [key.slice(start.length), value]),
   )
 }
 
@@ -61,7 +76,8 @@ export function coerceCompiledString(
   key: string,
 ): string | undefined {
   if (missingPrimitive(value, required, source, key)) return undefined
-  return String(value)
+  if (typeof value !== 'string') throw invalidPrimitive(source, key, 'The value must be a single string.')
+  return value
 }
 
 export function coerceCompiledNumber(
@@ -72,8 +88,12 @@ export function coerceCompiledNumber(
 ): number | undefined {
   if (missingPrimitive(value, required, source, key)) return undefined
 
+  if (typeof value !== 'number' && (
+    typeof value !== 'string'
+    || !/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(value)
+  )) throw invalidPrimitive(source, key, 'The value must be a finite decimal number.')
   const number = Number(value)
-  if (Number.isNaN(number)) throw invalidPrimitive(source, key, 'The value must be a number.')
+  if (!Number.isFinite(number)) throw invalidPrimitive(source, key, 'The value must be a finite decimal number.')
   return number
 }
 
@@ -94,10 +114,24 @@ export async function createCompiledFormRequest(
   RequestType: FormRequestConstructor,
   raw: unknown,
   source: CompiledSource,
+  queryDecoder: CompiledQueryDecoder = 'raw',
 ): Promise<InstanceType<FormRequestConstructor>> {
-  const result = await validateSchema(RequestType.schema, raw)
+  const input = source === 'query' ? decodeCompiledQuery(raw, queryDecoder) : raw
+  const result = await validateSchema(RequestType.schema, input)
   if (!result.success) throw new ValidationException(result.issues, source)
   return new RequestType(result.data as never, context.req)
+}
+
+function decodeCompiledQuery(raw: unknown, decoder: CompiledQueryDecoder, key = ''): unknown {
+  if (raw === undefined || decoder === 'raw') return raw
+  if (decoder === 'string') return coerceCompiledString(raw, false, 'query', key)
+  if (decoder === 'number') return coerceCompiledNumber(raw, false, 'query', key)
+  if (decoder === 'boolean') return coerceCompiledBoolean(raw, false, 'query', key)
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw
+  const fields = new Map(decoder.fields)
+  return Object.fromEntries(Object.entries(raw).map(([name, value]) => [
+    name, decodeCompiledQuery(value, fields.get(name) ?? 'raw', name),
+  ]))
 }
 
 export function normalizeCompiledResult(context: Context, result: unknown): Response {

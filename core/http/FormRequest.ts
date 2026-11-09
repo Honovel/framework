@@ -4,15 +4,11 @@ import type { InferSchema, ValidationSchema } from './validation'
 const formRequestMarker = Symbol('honovel.form-request')
 const requestData = new WeakMap<object, unknown>()
 const honoRequests = new WeakMap<object, HonoRequest>()
-const reservedFields = new Set(['req', 'validated', 'all', 'input'])
+const reservedFields = new Set(['req', 'validated'])
 
 export interface FormRequestMethods<TSchema extends ValidationSchema> {
   readonly req: HonoRequest
   validated(): InferSchema<TSchema>
-  all(): InferSchema<TSchema>
-  input<TKey extends keyof InferSchema<TSchema>>(
-    key: TKey,
-  ): InferSchema<TSchema>[TKey]
 }
 
 type FormRequestFields<TSchema extends ValidationSchema> =
@@ -54,16 +50,6 @@ abstract class BaseFormRequest<TSchema extends ValidationSchema>
 
   validated(): InferSchema<TSchema> {
     return requestData.get(this) as InferSchema<TSchema>
-  }
-
-  all(): InferSchema<TSchema> {
-    return this.validated()
-  }
-
-  input<TKey extends keyof InferSchema<TSchema>>(
-    key: TKey,
-  ): InferSchema<TSchema>[TKey] {
-    return this.validated()[key]
   }
 }
 

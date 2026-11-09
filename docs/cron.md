@@ -11,14 +11,20 @@ Fields that you omit become `*`.
 ## Create a cron job
 
 ```ts
+import { Cron, CronJob, Logger } from 'honovel'
+
 @Cron({
   minute: 30,
   hour: 8,
   weekday: 'MON-FRI',
 })
 export class SendMorningReminders extends CronJob {
+  constructor(private readonly logger: Logger) {
+    super()
+  }
+
   async handle() {
-    console.log('Sending reminders')
+    this.logger.info('Sending reminders', 'reminders.send.started')
   }
 }
 ```
@@ -231,6 +237,8 @@ export class CleanupExpiredBookings extends CronJob {
 ```
 
 A fresh execution scope is created when the job runs.
+
+Inject `Logger` for structured logs with the job's class name as `service`. Cron executions have no automatic HTTP request ID. See [Logging in cron jobs](/logging#logging-in-cron-jobs) for a complete example and [Event names and messages](/logging#event-names-and-messages) for the difference between `event` and `message`.
 
 ## Dispatch queued work
 
